@@ -13,14 +13,15 @@ two problems that block making it a general-purpose, open-source agent tool:
 1. It's only reachable by shelling out to a script — no protocol-level tool
    description, so any MCP-aware host (Claude Desktop/Code, Cursor, etc.)
    can't discover it as a native tool.
-2. Live testing during this session found the HTML-scrape data path
-   (`olx.py url`, and the HTML fallback inside `olx.py offer`) silently
-   produces broken output — see "The core bug" below. There is currently no
-   automated test suite protecting against this class of regression.
+2. Live testing during this session found two real bugs in the HTML-scrape
+   data path (`olx.py url`, and the HTML fallback inside `olx.py offer`) —
+   see "Bugs found during testing" below. There is currently no automated
+   test suite protecting against this class of regression.
 
 ## Goals
 
-- Fix the normalization bug so both data-fetch paths produce correct output.
+- Fix both bugs found during testing so every data-fetch path produces
+  correct output.
 - Split the single file into a small, testable package with one shared core.
 - Ship two thin wrappers around that core: a CLI (drop-in equivalent of
   today's `olx.py`) and an MCP server (stdio transport).
@@ -63,7 +64,13 @@ change, but the README states plainly that only olx.pl is verified —
 other domains are "try it, file a bug if the shape differs," not a
 supported claim made by this rewrite.
 
-## The core bug
+## Bugs found during testing
+
+Two independent, real bugs were found by exercising every subcommand live
+against olx.pl during this session — both live in the HTML/`__PRERENDERED_STATE__`
+path, `search`/`stats` (pure JSON API) were unaffected by either.
+
+### Bug 1 — `normalize()` shape mismatch
 
 The two fetch paths return **structurally different** raw offer shapes, and
 `normalize()`/`normalize_detail()` were written only against the JSON API
@@ -79,14 +86,12 @@ shape:
 Consequence: every offer reached via `olx.py url` or the HTML fallback in
 `olx.py offer <id>` silently loses price, city, district, and age, and
 prints an untranslated Polish condition string. Confirmed live against
-`https://www.olx.pl/oferty/q-asus-vivobook-14/...` during this session —
-`search`/`stats` (pure API path) were unaffected.
+`https://www.olx.pl/oferty/q-asus-vivobook-14/...` during this session.
 
-### Fix
-
-Introduce one small adapter per source that maps its raw field names into a
-single common intermediate shape; `normalize()`/`normalize_detail()` then
-operate on that one shape only, with no shape-sniffing:
+**Fix:** introduce one small adapter per source that maps its raw field
+names into a single common intermediate shape; `normalize()`/
+`normalize_detail()` then operate on that one shape only, with no
+shape-sniffing:
 
 - `adapt_api_offer(raw) -> CommonOffer`
 - `adapt_html_offer(raw) -> CommonOffer`
@@ -100,6 +105,40 @@ Rejected alternatives:
   URL) and multiplies HTTP calls per listing page (an N+1 pattern for
   something that's supposed to be cheap).
 
+### Bug 2 — `find_offers()` can't locate a single offer
+
+`cmd_offer`'s HTML fallback (used whenever a URL is passed directly to
+`olx.py offer`, or whenever the numeric-id JSON detail lookup fails and
+falls back to a cached URL) calls `find_offers(state)` and takes
+`cands[0]`. But on a real offer-*detail* page, the offer sits as a **bare
+dict** at `state["ad"]["ad"]` — not inside any list. `find_offers()`'s
+existing heuristic only ever inspects `list` nodes for offer-shaped dicts,
+so it structurally cannot find a lone dict, no matter how it's nested.
+Confirmed live: `find_offers()` returns `0` candidates on every real detail
+page tested, so `olx.py offer <url>` currently fails outright with
+`could not locate the offer object in the page state` — not degraded
+output like Bug 1, a hard failure of the entire code path.
+
+**Fix:** extend `find_offers()` so that, while recursing into a `dict`
+node, it also treats that dict itself as a one-item candidate list when it
+matches the existing offer-shape heuristic (`"id"` + `"title"` +
+one of `"url"`/`"params"`/`"price"`) and no better (list-based) candidate
+has been found yet:
+
+```python
+elif isinstance(node, dict):
+    if not best and _looks_like_offer(node):
+        best = [node]
+    for v in node.values():
+        best = find_offers(v, best)
+```
+
+Recursion continues afterward exactly as before, so a real list found
+deeper in the tree (`len(dicts) > len(best)`) still overrides this
+single-dict fallback — verified against both a real listing page (still
+returns all 46 offers, unchanged) and a real detail page (now returns the
+1 correct offer, id matching the page) during this session.
+
 ## Architecture
 
 ```
@@ -107,13 +146,13 @@ OLX4AI/
 ├── src/olx4ai/
 │   ├── core/
 │   │   ├── cache.py        # fetch() + disk cache + id→url index
-│   │   ├── prerendered.py  # extract __PRERENDERED_STATE__, find_offers()
+│   │   ├── prerendered.py  # extract __PRERENDERED_STATE__, find_offers() (Bug 2 fix)
 │   │   ├── api_client.py   # JSON API search (api_search)
 │   │   ├── html_client.py  # HTML scrape search (html_search)
-│   │   ├── adapters.py     # NEW — adapt_api_offer() / adapt_html_offer()
+│   │   ├── adapters.py     # NEW — adapt_api_offer() / adapt_html_offer() (Bug 1 fix)
 │   │   ├── normalize.py    # normalize()/normalize_detail(), common-shape only
 │   │   ├── filters.py      # post_filter (--exclude/--must/--dedupe/--no-promoted)
-│   │   └── format.py       # fmt_line, print_stats, emit
+│   │   └── format.py       # fmt_line, compute_stats, print_stats, emit
 │   ├── cli.py               # argparse wrapper — thin, delegates to core
 │   └── mcp_server.py        # MCP server — thin, delegates to core
 ├── tests/
@@ -126,9 +165,15 @@ OLX4AI/
 ```
 
 This is a relocation of existing logic (one module per current concern) plus
-one new module (`adapters.py`) that fixes the bug. No behavior changes are
-intended in `cache.py`, `prerendered.py`, `api_client.py`, `html_client.py`,
-`filters.py`, or `format.py` beyond the rename below.
+one new module (`adapters.py`) that fixes Bug 1, and a small addition inside
+`prerendered.py`'s existing `find_offers()` that fixes Bug 2. No other
+behavior changes are intended in `cache.py`, `api_client.py`,
+`html_client.py`, or `filters.py` beyond the rename below. `format.py` gains
+one refactor: `print_stats()`'s histogram/quantile math is extracted into a
+`compute_stats(rows) -> dict` helper so the MCP server's `stats` tool can
+return the same numbers as structured data instead of printed text (see
+"MCP server" below) — `print_stats()` itself keeps printing byte-identical
+output by calling `compute_stats()` internally.
 
 ### Data flow
 
@@ -148,18 +193,27 @@ disk cache, it'll repopulate on first run.
 ## CLI (`olx4ai` command)
 
 Same six subcommands as today (`search`, `stats`, `url`, `offer`,
-`agent-help`, `clear-cache`), same flags, same output format. `cli.py`
-contains only argparse wiring and the `CHEAT` usage text; all business logic
-lives in `core/`. Zero third-party dependencies — stays stdlib-only.
+`agent-help`, `clear-cache`), same flags, same output format, plus one new
+top-level `--domain` flag (see "Domain configuration") read before
+dispatching to any subcommand. `cli.py` contains only argparse wiring and
+the `CHEAT` usage text; all business logic lives in `core/`. Zero
+third-party dependencies — stays stdlib-only.
 
 ## MCP server (`olx4ai-mcp` command)
 
-Built on the official `mcp` Python SDK, **stdio transport only**. Exposes
-one tool per CLI subcommand that has agent-facing value: `search`, `stats`,
-`search_url`, `offer`, `clear_cache` — each with a typed JSON-schema
-signature (mirroring the CLI flags) calling straight into `core/`, returning
-the same pruned fields as structured JSON. No `agent-help` equivalent is
-needed here — MCP tools self-describe via schema, which is the point.
+Built on the official `mcp` Python SDK (`pip install "mcp[cli]"`,
+`mcp.server.MCPServer`), **stdio transport only** (`mcp.run()` defaults to
+it). Exposes one tool per CLI subcommand that has agent-facing value:
+`search`, `stats`, `search_url`, `offer`, `clear_cache` — each a plain
+type-hinted function decorated with `@mcp.tool()`, calling straight into
+`core/` and returning the same pruned fields as structured output (list/dict
+return types are auto-published as the tool's output schema — no manual
+JSON Schema or Pydantic models needed). `stats` returns `compute_stats()`'s
+dict directly instead of printed text. No `agent-help` equivalent is needed
+here — MCP tools self-describe via schema, which is the point. Tests use the
+SDK's documented in-memory pattern — `mcp.client.Client(server)` calling
+`call_tool()` directly against the `MCPServer` instance, no subprocess or
+real stdio involved.
 
 ## Packaging
 
