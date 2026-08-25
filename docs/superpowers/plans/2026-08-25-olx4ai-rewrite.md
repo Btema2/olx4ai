@@ -38,8 +38,8 @@
   git+https://github.com/Btema2/OLX4AI"`.
 - MIT license, copyright holder `Btema2` (the GitHub account publishing this
   repo — see `gh auth status`), year 2026.
-- Code follows PEP 8, and every function signature carries type annotations
-  (the deliberate exceptions: `args`/`**kwargs` parameters in
+- Code in `src/` follows PEP 8, and every function signature carries type
+  annotations (the deliberate exceptions: `args`/`**kwargs` parameters in
   `filters.post_filter`, `api_client.api_search`, `format.emit`, and
   `mcp_server._Args` that intentionally duck-type across
   `argparse.Namespace`, `SimpleNamespace` (as used in their own tests),
@@ -49,11 +49,17 @@
   inner `wrapper` — typing those via `Callable`/`ParamSpec` adds
   boilerplate with no real safety gain for a 5-line decorator. Every
   other function signature, including private `_`-prefixed helpers like
-  `mcp_server._search_rows`, gets full annotations). `black`, `isort`,
-  and `ruff` (all in the `dev` extra, added in Task 1) are the
-  formatting/lint standard; Task 12 runs them across the full tree once
-  and wires the CI lint gate, rather than gating every intermediate task
-  commit on it.
+  `mcp_server._search_rows`, gets full annotations). Test functions in
+  `tests/` (fixtures, helper factories like `make_args()`/`offer_row()`,
+  and `test_*` functions themselves) are NOT required to carry
+  annotations — a bare `def test_x() -> None:` on ~60 functions is noise,
+  not signal, and this scope split was made explicit after the final
+  whole-branch review flagged that the earlier phrasing ("every function
+  signature") read as covering tests too while nothing in the plan ever
+  actually enforced or closed that gap. `black`, `isort`, and `ruff` (all
+  in the `dev` extra, added in Task 1) are the formatting/lint standard;
+  Task 12 runs them across the full tree once and wires the CI lint gate,
+  rather than gating every intermediate task commit on it.
 
 ---
 
