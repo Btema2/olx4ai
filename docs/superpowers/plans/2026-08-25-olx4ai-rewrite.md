@@ -2129,6 +2129,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+from typing import Any
 
 from mcp.server import MCPServer
 
@@ -2190,7 +2191,7 @@ def search(query: str, max: int = 40, min: int | None = None,
 @mcp.tool()
 @_mcp_safe
 def stats(query: str, min: int | None = None, max_price: int | None = None,
-          condition: str | None = None) -> dict:
+          condition: str | None = None) -> dict[str, Any]:
     """Price distribution (min/p25/median/p75/max + histogram) for a query."""
     rows = _search_rows(query, 100, min, max_price, condition, "relevance",
                          None, None, None, None, None, False, False)
@@ -2209,7 +2210,7 @@ def search_url(url: str, max: int = 40) -> list[dict]:
 
 @mcp.tool()
 @_mcp_safe
-def offer(target: str, desc_chars: int = 1200) -> dict:
+def offer(target: str, desc_chars: int = 1200) -> dict[str, Any]:
     """Full details (description, specs, seller) for one offer by numeric id or URL."""
     offer_dict = None
     adapt = adapters.adapt_api_offer
@@ -2236,7 +2237,7 @@ def offer(target: str, desc_chars: int = 1200) -> dict:
 
 
 @mcp.tool()
-def clear_cache() -> dict:
+def clear_cache() -> dict[str, Any]:
     """Remove all cached HTTP responses (does not clear the id-to-url index)."""
     n = 0
     if os.path.isdir(cache.CACHE_DIR):
