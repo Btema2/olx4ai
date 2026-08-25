@@ -19,6 +19,7 @@ CHEAT = """olx4ai — context-cheap OLX browser. One short line per offer, no HT
   olx4ai search "asus vivobook 14" --max 40
   olx4ai search "asus vivobook 14" --min 800 --max-price 2000 --used --sort price-asc
   olx4ai search "iphone 13" --exclude "obudowa,etui,czesci" --dedupe --no-promoted
+  olx4ai url    "<any olx.pl listing URL with filters already applied>"
   olx4ai url    "https://www.olx.pl/warszawa/q-iphone/"  # /city-slug/q-*; not /oferty/w-* (404s)
   olx4ai offer  1023456789                          # description + specs for ONE id
   olx4ai search ... --json --fields id,title,price  # machine-readable, still pruned

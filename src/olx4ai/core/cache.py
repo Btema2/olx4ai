@@ -18,6 +18,8 @@ API = f"{BASE}/api/v1/offers/"
 CACHE_DIR = os.path.expanduser(os.environ.get("OLX4AI_CACHE_DIR", "~/.cache/olx4ai"))
 CACHE_TTL = int(os.environ.get("OLX4AI_CACHE_TTL", "600"))
 RETRY_DELAY = 2  # seconds; used when Retry-After is absent or unparseable
+MAX_RETRY_DELAY = 60  # seconds; clamp for Retry-After-derived delays
+RETRYABLE_HTTP_CODES = {403, 408, 429}  # plus any 5xx; see _is_retryable()
 UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -46,15 +48,23 @@ def _open(req: urllib.request.Request) -> tuple[bytes, str]:
     return raw, enc
 
 
+def _is_retryable(status_code: int) -> bool:
+    """Whether an HTTPError status is transient and worth one retry."""
+    return status_code in RETRYABLE_HTTP_CODES or status_code >= 500
+
+
 def _retry_delay(error: urllib.error.HTTPError) -> int:
-    """Seconds to wait before retrying, from Retry-After if present/valid."""
+    """Seconds to wait before retrying, from Retry-After if present/valid,
+    clamped to [0, MAX_RETRY_DELAY] to guard against negative or huge values."""
     retry_after = error.headers.get("Retry-After") if error.headers is not None else None
     if retry_after is None:
-        return RETRY_DELAY
-    try:
-        return int(retry_after)
-    except ValueError:
-        return RETRY_DELAY
+        delay = RETRY_DELAY
+    else:
+        try:
+            delay = int(retry_after)
+        except ValueError:
+            delay = RETRY_DELAY
+    return min(max(delay, 0), MAX_RETRY_DELAY)
 
 
 def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
@@ -84,7 +94,12 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
     try:
         raw, enc = _open(req)
     except urllib.error.HTTPError as e:
+        if not _is_retryable(e.code):
+            raise SystemExit(
+                f"HTTP {e.code} for {url}\n{e.read()[:400].decode('utf-8', 'replace')}"
+            )
         delay = _retry_delay(e)
+        e.close()
         time.sleep(delay)
         try:
             raw, enc = _open(req)

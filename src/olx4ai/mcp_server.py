@@ -159,7 +159,7 @@ def search_url(url: str, max: int = 40) -> list[dict]:
 
 @mcp.tool()
 @_mcp_safe
-def offer(target: str, desc_chars: int = 1200) -> dict[str, Any]:
+def offer(target: str, desc_chars: int = 4000) -> dict[str, Any]:
     """Full details (description, specs, seller) for one offer by numeric id or URL."""
     offer_dict = None
     adapt = adapters.adapt_api_offer

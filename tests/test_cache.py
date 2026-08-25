@@ -157,5 +157,92 @@ def test_fetch_retry_falls_back_to_default_when_retry_after_unparseable(monkeypa
     sleep.assert_called_once_with(cache.RETRY_DELAY)
 
 
+def test_fetch_does_not_retry_non_retryable_http_error(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    with patch("urllib.request.urlopen", side_effect=[_http_error(code=404)]) as urlopen:
+        with pytest.raises(SystemExit, match="HTTP 404 for"):
+            cache.fetch("https://example.com/not-found", json_mode=True)
+
+    assert urlopen.call_count == 1  # a 404 can never succeed on retry
+    sleep.assert_not_called()
+
+
+def test_fetch_retries_on_5xx_status(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b"ok")
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=[_http_error(code=503), success],
+    ) as urlopen:
+        text = cache.fetch("https://example.com/retry-5xx", json_mode=True)
+
+    assert text == "ok"
+    assert urlopen.call_count == 2
+    sleep.assert_called_once_with(cache.RETRY_DELAY)
+
+
+def test_retry_delay_clamps_negative_retry_after_to_zero():
+    error = _http_error(retry_after="-5")
+    try:
+        assert cache._retry_delay(error) == 0
+    finally:
+        error.close()
+
+
+def test_retry_delay_clamps_large_retry_after_to_max():
+    error = _http_error(retry_after="3600")
+    try:
+        assert cache._retry_delay(error) == cache.MAX_RETRY_DELAY
+    finally:
+        error.close()
+
+
+def test_fetch_retry_sleeps_clamped_delay_for_huge_retry_after(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b"ok")
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=[_http_error(retry_after="99999"), success],
+    ):
+        cache.fetch("https://example.com/retry-huge", json_mode=True)
+
+    sleep.assert_called_once_with(cache.MAX_RETRY_DELAY)
+
+
+def test_fetch_retry_sleeps_clamped_delay_for_negative_retry_after(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b"ok")
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=[_http_error(retry_after="-1"), success],
+    ):
+        cache.fetch("https://example.com/retry-negative", json_mode=True)
+
+    sleep.assert_called_once_with(0)
+
+
+def test_fetch_closes_first_http_error_before_retrying(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    first_error = _http_error()
+    close_spy = MagicMock(wraps=first_error.close)
+    monkeypatch.setattr(first_error, "close", close_spy)
+
+    success = _fake_response(b"ok")
+    with patch("urllib.request.urlopen", side_effect=[first_error, success]):
+        cache.fetch("https://example.com/retry-closes", json_mode=True)
+
+    close_spy.assert_called_once()
+
+
 def test_index_get_missing_index_file_returns_none():
     assert cache.index_get("1") is None

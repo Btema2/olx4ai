@@ -64,6 +64,17 @@ def test_agent_help_prints_cheat_sheet(capsys):
     assert "context-cheap" in out
 
 
+def test_agent_help_documents_url_filters_and_city_slug_pattern(capsys):
+    sys.argv = ["olx4ai", "agent-help"]
+    main()
+    out = capsys.readouterr().out
+    # keeps the generic "filters already applied" example ...
+    assert "<any olx.pl listing URL with filters already applied>" in out
+    # ... AND the concrete city-slug pattern tip, not one replacing the other
+    assert "/city-slug/q-*" in out
+    assert "/oferty/w-*" in out
+
+
 def test_clear_cache_removes_cached_files(tmp_path, capsys):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")

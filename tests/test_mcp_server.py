@@ -73,6 +73,13 @@ async def test_offer_tool_translates_fetch_errors_to_tool_errors(monkeypatch):
     assert result.is_error is True
 
 
+async def test_offer_tool_desc_chars_default_matches_cli():
+    async with Client(mcp) as client:
+        result = await client.list_tools()
+    schema = next(t for t in result.tools if t.name == "offer").input_schema
+    assert schema["properties"]["desc_chars"]["default"] == 4000
+
+
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
     async with Client(mcp) as client:
