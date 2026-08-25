@@ -47,18 +47,18 @@ def extract_prerendered(html: str) -> dict:
     idx = html.find("__PRERENDERED_STATE__")
     if idx == -1:
         raise SystemExit("no __PRERENDERED_STATE__ on this page (bot wall or layout change?)")
-    rest = html[html.index("=", idx) + 1:].lstrip()
+    rest = html[html.index("=", idx) + 1 :].lstrip()
 
     if rest[0] in "\"'":
         literal = _scan_js_string(rest)
         if literal[0] == "'":  # normalise to a JSON-parsable double-quoted literal
             literal = '"' + literal[1:-1].replace('"', '\\"').replace("\\'", "'") + '"'
-        inner = json.loads(literal)          # -> str
+        inner = json.loads(literal)  # -> str
     else:
         inner = _scan_balanced(rest)
 
     if isinstance(inner, str):
-        if inner.lstrip().startswith("%"):   # sometimes URI-encoded
+        if inner.lstrip().startswith("%"):  # sometimes URI-encoded
             inner = urllib.parse.unquote(inner)
         return json.loads(inner)
     return inner
@@ -68,7 +68,9 @@ def _looks_like_offer(d: dict) -> bool:
     return "id" in d and "title" in d and ("url" in d or "params" in d or "price" in d)
 
 
-def find_offers(node: object, best: list[dict[str, object]] | None = None) -> list[dict[str, object]]:
+def find_offers(
+    node: object, best: list[dict[str, object]] | None = None
+) -> list[dict[str, object]]:
     """Structure-agnostic: find the offers, whether they sit in a list
     (search/listing pages) or as a single bare dict (offer-detail pages)."""
     best = best or []

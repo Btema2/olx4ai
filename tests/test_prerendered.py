@@ -7,9 +7,9 @@ window.__PRERENDERED_STATE__ = {"listing":{"listing":{"data":[
 ]}}};
 </script></body></html>"""
 
-JS_STRING_HTML = '''<html><body><script>
+JS_STRING_HTML = """<html><body><script>
 window.__PRERENDERED_STATE__ = "{\\"listing\\":{\\"listing\\":{\\"data\\":[{\\"id\\":1,\\"title\\":\\"Offer A\\",\\"url\\":\\"https://example.com/a\\",\\"params\\":[]}]}}}";
-</script></body></html>'''
+</script></body></html>"""
 
 SINGLE_OFFER_HTML = """<html><body><script>
 window.__PRERENDERED_STATE__ = {"ad":{"ad":{"id": 99, "title": "Solo Offer", "url": "https://example.com/solo", "params": []}}};
@@ -33,6 +33,7 @@ def test_extract_prerendered_raises_when_marker_absent():
 
 def pytest_raises_system_exit():
     import pytest
+
     return pytest.raises(SystemExit)
 
 
@@ -56,10 +57,12 @@ def test_find_offers_locates_single_bare_offer_dict():
 def test_find_offers_prefers_list_over_single_dict_when_both_present():
     state = {
         "solo": {"id": 1, "title": "Should Not Win", "url": "https://example.com/x"},
-        "list": {"data": [
-            {"id": 2, "title": "A", "url": "https://example.com/a"},
-            {"id": 3, "title": "B", "url": "https://example.com/b"},
-        ]},
+        "list": {
+            "data": [
+                {"id": 2, "title": "A", "url": "https://example.com/a"},
+                {"id": 3, "title": "B", "url": "https://example.com/b"},
+            ]
+        },
     }
     offers = find_offers(state)
     assert len(offers) == 2

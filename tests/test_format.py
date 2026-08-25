@@ -5,12 +5,36 @@ from olx4ai.core import cache
 from olx4ai.core import format as fmt
 
 
-def offer_row(id=1, title="Test Offer", price=1000, price_label=None, neg=False,
-              cond="used", city="Warszawa", district="Mokotów", age="1d",
-              delivery=False, biz=False, promoted=False, url="https://example.com/1"):
-    return dict(id=id, title=title, price=price, price_label=price_label, neg=neg,
-                cond=cond, city=city, district=district, age=age, delivery=delivery,
-                biz=biz, promoted=promoted, url=url)
+def offer_row(
+    id=1,
+    title="Test Offer",
+    price=1000,
+    price_label=None,
+    neg=False,
+    cond="used",
+    city="Warszawa",
+    district="Mokotów",
+    age="1d",
+    delivery=False,
+    biz=False,
+    promoted=False,
+    url="https://example.com/1",
+):
+    return dict(
+        id=id,
+        title=title,
+        price=price,
+        price_label=price_label,
+        neg=neg,
+        cond=cond,
+        city=city,
+        district=district,
+        age=age,
+        delivery=delivery,
+        biz=biz,
+        promoted=promoted,
+        url=url,
+    )
 
 
 def test_fmt_line_includes_price_flags_and_location():

@@ -7,8 +7,9 @@ import json
 import os
 import sys
 
-from olx4ai.core import adapters, api_client, cache, filters, html_client
+from olx4ai.core import adapters, api_client, cache, filters
 from olx4ai.core import format as fmt
+from olx4ai.core import html_client
 from olx4ai.core import normalize as norm
 from olx4ai.core.prerendered import extract_prerendered, find_offers
 
@@ -45,9 +46,9 @@ def cmd_stats(args: argparse.Namespace) -> None:
 
 def cmd_url(args: argparse.Namespace) -> None:
     raw = html_client.html_search(args.target, use_cache=not args.no_cache)
-    rows = filters.post_filter(
-        [norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args
-    )[: args.max]
+    rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
+        : args.max
+    ]
     fmt.emit(rows, args, args.target)
 
 
@@ -57,20 +58,24 @@ def cmd_offer(args: argparse.Namespace) -> None:
     adapt = adapters.adapt_api_offer
     if target.isdigit():
         try:
-            payload = json.loads(cache.fetch(f"{cache.API}{target}/", json_mode=True,
-                                              use_cache=not args.no_cache))
+            payload = json.loads(
+                cache.fetch(f"{cache.API}{target}/", json_mode=True, use_cache=not args.no_cache)
+            )
             offer = payload.get("data") or payload
         except SystemExit:
             offer = None
         if offer is None:
             url = cache.index_get(target)
             if not url:
-                raise SystemExit(f"id {target} not in cache index — run a search first, "
-                                  f"or pass the full offer URL")
+                raise SystemExit(
+                    f"id {target} not in cache index — run a search first, "
+                    f"or pass the full offer URL"
+                )
             target = url
     if offer is None:
-        state = extract_prerendered(cache.fetch(target, json_mode=False,
-                                                  use_cache=not args.no_cache))
+        state = extract_prerendered(
+            cache.fetch(target, json_mode=False, use_cache=not args.no_cache)
+        )
         cands = find_offers(state)
         offer = cands[0] if cands else None
         adapt = adapters.adapt_html_offer
@@ -82,10 +87,12 @@ def cmd_offer(args: argparse.Namespace) -> None:
         print(json.dumps(d, ensure_ascii=False, separators=(",", ":")))
         return
     price = f"{d['price']}zł" if d["price"] is not None else (d["price_label"] or "-")
-    print(f"{d['title']}\n{price}{' (negotiable)' if d['neg'] else ''}  |  "
-          f"{d['cond'] or '?'}  |  "
-          f"{', '.join(x for x in (d['city'], d['district'], d['region']) if x)}  |  "
-          f"{d['age']} old  |  {d['photos']} photos")
+    print(
+        f"{d['title']}\n{price}{' (negotiable)' if d['neg'] else ''}  |  "
+        f"{d['cond'] or '?'}  |  "
+        f"{', '.join(x for x in (d['city'], d['district'], d['region']) if x)}  |  "
+        f"{d['age']} old  |  {d['photos']} photos"
+    )
     if d["specs"]:
         print("specs: " + "; ".join(f"{k}={v}" for k, v in d["specs"].items()))
     if d["seller"]:
@@ -112,10 +119,14 @@ def cmd_clear_cache(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="olx4ai", description="context-cheap OLX browser for AI agents")
-    p.add_argument("--domain", default=None,
-                    help="OLX domain to target (default olx.pl, or $OLX4AI_DOMAIN "
-                         "if set; other OLX Europe domains untested)")
+        prog="olx4ai", description="context-cheap OLX browser for AI agents"
+    )
+    p.add_argument(
+        "--domain",
+        default=None,
+        help="OLX domain to target (default olx.pl, or $OLX4AI_DOMAIN "
+        "if set; other OLX Europe domains untested)",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def common(sp: argparse.ArgumentParser, with_query: bool = True) -> None:
@@ -131,8 +142,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--category", help="OLX category_id")
         sp.add_argument("--city-id")
         sp.add_argument("--region-id")
-        sp.add_argument("--param", action="append",
-                         help="raw API param, repeatable, e.g. --param filter_enum_hdd_type[0]=ssd")
+        sp.add_argument(
+            "--param",
+            action="append",
+            help="raw API param, repeatable, e.g. --param filter_enum_hdd_type[0]=ssd",
+        )
         sp.add_argument("--exclude", help="comma-separated words to drop from titles")
         sp.add_argument("--must", help="comma-separated words the title must contain")
         sp.add_argument("--dedupe", action="store_true")

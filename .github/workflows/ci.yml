@@ -17,4 +17,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[mcp,dev]"
+      - run: ruff check .
+      - run: black --check .
+      - run: isort --check-only .
       - run: pytest -v

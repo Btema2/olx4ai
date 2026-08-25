@@ -48,7 +48,8 @@ async def test_offer_tool_from_html_fallback(monkeypatch, html_offer_detail_html
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_offer_detail_html)
     async with Client(mcp) as client:
         result = await client.call_tool(
-            "offer", {"target": "https://www.olx.pl/d/oferta/test-vacuum.html"})
+            "offer", {"target": "https://www.olx.pl/d/oferta/test-vacuum.html"}
+        )
     assert result.structured_content["price"] == 250
     assert result.structured_content["city"] == "Wrocław"
 

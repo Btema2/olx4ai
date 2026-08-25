@@ -53,7 +53,7 @@ def api_search(args) -> list[dict]:
             break
         rows.extend(batch)
         offset += len(batch)
-        total = ((payload.get("metadata") or {}).get("total_elements"))
+        total = (payload.get("metadata") or {}).get("total_elements")
         if total is not None and offset >= total:
             break
         if len(rows) < args.max:

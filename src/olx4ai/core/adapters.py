@@ -25,24 +25,28 @@ def adapt_html_offer(raw: dict) -> dict:
         if not isinstance(p, dict):
             continue
         if p.get("key") == "state":
-            adapted_params.append({
-                **p,
-                "value": {"key": p.get("normalizedValue"), "label": p.get("value")},
-            })
+            adapted_params.append(
+                {
+                    **p,
+                    "value": {"key": p.get("normalizedValue"), "label": p.get("value")},
+                }
+            )
         else:
             adapted_params.append(p)
-    adapted_params.append({
-        "key": "price",
-        "name": "Cena",
-        "type": "price",
-        "value": {
-            "value": regular.get("value"),
-            "label": price.get("displayValue"),
-            "currency": regular.get("currencyCode"),
-            "negotiable": bool(regular.get("negotiable")),
-            "arranged": bool(price.get("exchange")),
-        },
-    })
+    adapted_params.append(
+        {
+            "key": "price",
+            "name": "Cena",
+            "type": "price",
+            "value": {
+                "value": regular.get("value"),
+                "label": price.get("displayValue"),
+                "currency": regular.get("currencyCode"),
+                "negotiable": bool(regular.get("negotiable")),
+                "arranged": bool(price.get("exchange")),
+            },
+        }
+    )
 
     return {
         **raw,

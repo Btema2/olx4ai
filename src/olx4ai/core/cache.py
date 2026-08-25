@@ -42,15 +42,21 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         with open(path, "r", encoding="utf-8") as fh:
             return fh.read()
 
-    req = urllib.request.Request(url, headers={
-        "User-Agent": UA,
-        "Accept": "application/json, text/plain, */*" if json_mode
-                  else "text/html,application/xhtml+xml",
-        "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate",
-        "Referer": BASE + "/",
-        "Connection": "close",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": UA,
+            "Accept": (
+                "application/json, text/plain, */*"
+                if json_mode
+                else "text/html,application/xhtml+xml"
+            ),
+            "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate",
+            "Referer": BASE + "/",
+            "Connection": "close",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=25) as resp:
             raw = resp.read()

@@ -6,9 +6,18 @@ from olx4ai.core import api_client, cache
 
 def make_args(**overrides):
     defaults = dict(
-        query="test laptop", max=40, offset=0, min=None, max_price=None,
-        category=None, city_id=None, region_id=None, condition=None,
-        sort="relevance", param=None, no_cache=False,
+        query="test laptop",
+        max=40,
+        offset=0,
+        min=None,
+        max_price=None,
+        category=None,
+        city_id=None,
+        region_id=None,
+        condition=None,
+        sort="relevance",
+        param=None,
+        no_cache=False,
     )
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
@@ -47,7 +56,8 @@ def test_api_search_respects_domain_configuration(monkeypatch, api_search_payloa
 
 def test_api_search_stops_when_batch_empty(monkeypatch):
     monkeypatch.setattr(
-        cache, "fetch",
+        cache,
+        "fetch",
         lambda url, **kw: json.dumps({"data": [], "metadata": {"total_elements": 0}}),
     )
     rows = api_client.api_search(make_args())

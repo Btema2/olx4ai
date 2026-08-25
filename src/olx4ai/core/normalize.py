@@ -7,8 +7,14 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
-CONDITION = {"used": "used", "new": "new", "damaged": "damaged",
-             "uzywane": "used", "nowe": "new", "uszkodzone": "damaged"}
+CONDITION = {
+    "used": "used",
+    "new": "new",
+    "damaged": "damaged",
+    "uzywane": "used",
+    "nowe": "new",
+    "uszkodzone": "damaged",
+}
 
 
 def _param_map(offer: dict) -> dict:
@@ -89,12 +95,14 @@ def normalize_detail(offer: dict, desc_chars: int) -> dict:
     desc = re.sub(r"[ \t]+", " ", desc).strip()
     if desc_chars and len(desc) > desc_chars:
         desc = desc[:desc_chars].rsplit(" ", 1)[0] + " […]"
-    d.update({
-        "specs": specs,
-        "description": desc,
-        "seller": (offer.get("user") or {}).get("name"),
-        "seller_since": (offer.get("user") or {}).get("created"),
-        "photos": len(offer.get("photos") or []),
-        "created": offer.get("created_time"),
-    })
+    d.update(
+        {
+            "specs": specs,
+            "description": desc,
+            "seller": (offer.get("user") or {}).get("name"),
+            "seller_since": (offer.get("user") or {}).get("created"),
+            "photos": len(offer.get("photos") or []),
+            "created": offer.get("created_time"),
+        }
+    )
     return d

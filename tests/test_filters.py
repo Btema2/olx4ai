@@ -29,7 +29,11 @@ def test_no_promoted_drops_promoted_rows():
 
 
 def test_dedupe_drops_same_title_and_price():
-    rows = [row("Same Title", price=100), row("Same Title", price=100), row("Same Title", price=200)]
+    rows = [
+        row("Same Title", price=100),
+        row("Same Title", price=100),
+        row("Same Title", price=200),
+    ]
     args = SimpleNamespace(exclude=None, must=None, no_promoted=False, dedupe=True)
     out = post_filter(rows, args)
     assert len(out) == 2
@@ -37,8 +41,11 @@ def test_dedupe_drops_same_title_and_price():
 
 
 def test_filters_compose_together():
-    rows = [row("iPhone Case", promoted=True), row("iPhone 13", promoted=True),
-            row("iPhone 13", promoted=False)]
+    rows = [
+        row("iPhone Case", promoted=True),
+        row("iPhone 13", promoted=True),
+        row("iPhone 13", promoted=False),
+    ]
     args = SimpleNamespace(exclude="case", must="iphone", no_promoted=True, dedupe=True)
     out = post_filter(rows, args)
     assert [r["title"] for r in out] == ["iPhone 13"]
