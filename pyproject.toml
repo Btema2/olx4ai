@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "olx4ai"
+version = "0.1.0"
+description = "Context-cheap OLX browser for AI agents — CLI and MCP server."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp[cli]>=1.12.4"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6", "black>=24", "isort>=5"]
+
+[project.scripts]
+olx4ai = "olx4ai.cli:main"
+olx4ai-mcp = "olx4ai.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
