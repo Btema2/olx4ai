@@ -68,7 +68,7 @@ def _looks_like_offer(d: dict) -> bool:
     return "id" in d and "title" in d and ("url" in d or "params" in d or "price" in d)
 
 
-def find_offers(node, best=None):
+def find_offers(node: object, best: list[dict[str, object]] | None = None) -> list[dict[str, object]]:
     """Structure-agnostic: find the offers, whether they sit in a list
     (search/listing pages) or as a single bare dict (offer-detail pages)."""
     best = best or []

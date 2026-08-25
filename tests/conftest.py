@@ -13,6 +13,6 @@ def html_listing_html() -> str:
 
 
 @pytest.fixture
-def html_offer_raw(html_listing_html) -> dict:
+def html_offer_raw(html_listing_html: str) -> dict:
     state = extract_prerendered(html_listing_html)
     return find_offers(state)[0]
