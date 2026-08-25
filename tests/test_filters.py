@@ -55,3 +55,43 @@ def test_missing_flags_default_to_no_op():
     rows = [row("Anything")]
     out = post_filter(rows, SimpleNamespace())
     assert out == rows
+
+
+def test_exclude_does_not_match_substring_false_positive():
+    """Regression test: 'pro' should not match 'PROMENADA' (substring false positive)."""
+    rows = [row("iPhone 17 sklep PROMENADA"), row("iPhone 13 Pro")]
+    args = SimpleNamespace(exclude="pro", must=None, no_promoted=False, dedupe=False)
+    out = post_filter(rows, args)
+    # Only "iPhone 13 Pro" should be excluded (matches whole word "Pro")
+    # "iPhone 17 sklep PROMENADA" should be kept (pro is not a whole word)
+    assert [r["title"] for r in out] == ["iPhone 17 sklep PROMENADA"]
+
+
+def test_exclude_matches_whole_word_correctly():
+    """Verify that whole-word matching still works: 'pro' matches 'Pro' in 'iPhone 17 Pro'."""
+    rows = [row("iPhone 17 Pro"), row("iPhone 13")]
+    args = SimpleNamespace(exclude="pro", must=None, no_promoted=False, dedupe=False)
+    out = post_filter(rows, args)
+    # "iPhone 17 Pro" should be excluded (matches whole word "Pro")
+    # "iPhone 13" should be kept
+    assert [r["title"] for r in out] == ["iPhone 13"]
+
+
+def test_must_does_not_match_substring_false_positive():
+    """Regression test: 'pro' should not match 'PROMENADA' with must filter."""
+    rows = [row("iPhone 17 sklep PROMENADA"), row("iPhone 13 Pro")]
+    args = SimpleNamespace(exclude=None, must="pro", no_promoted=False, dedupe=False)
+    out = post_filter(rows, args)
+    # Only "iPhone 13 Pro" should be kept (matches whole word "Pro")
+    # "iPhone 17 sklep PROMENADA" should be excluded (pro is not a whole word)
+    assert [r["title"] for r in out] == ["iPhone 13 Pro"]
+
+
+def test_must_matches_whole_word_correctly():
+    """Verify that whole-word matching still works with must: 'pro' matches 'Pro' in 'iPhone 17 Pro'."""
+    rows = [row("iPhone 17 Pro"), row("iPhone 13")]
+    args = SimpleNamespace(exclude=None, must="pro", no_promoted=False, dedupe=False)
+    out = post_filter(rows, args)
+    # "iPhone 17 Pro" should be kept (matches whole word "Pro")
+    # "iPhone 13" should be excluded
+    assert [r["title"] for r in out] == ["iPhone 17 Pro"]
