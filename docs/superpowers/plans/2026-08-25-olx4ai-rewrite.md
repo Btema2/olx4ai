@@ -1926,12 +1926,12 @@ def cmd_clear_cache(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="olx4ai", description="context-cheap OLX browser for AI agents")
-    p.add_argument("--domain", default="olx.pl",
-                    help="OLX domain to target (default olx.pl; other OLX Europe "
-                         "domains untested)")
+    p.add_argument("--domain", default=None,
+                    help="OLX domain to target (default olx.pl, or $OLX4AI_DOMAIN "
+                         "if set; other OLX Europe domains untested)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    def common(sp, with_query=True):
+    def common(sp: argparse.ArgumentParser, with_query: bool = True) -> None:
         if with_query:
             sp.add_argument("query")
         sp.add_argument("--max", type=int, default=40, help="max offers (default 40)")
