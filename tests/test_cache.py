@@ -73,6 +73,13 @@ def test_fetch_ignores_cache_when_use_cache_false():
     assert text == "second"
 
 
+def test_fetch_rejects_non_http_scheme():
+    with patch("urllib.request.urlopen") as urlopen:
+        with pytest.raises(SystemExit, match="refusing non-http\\(s\\) URL"):
+            cache.fetch("file:///etc/passwd", json_mode=False)
+        urlopen.assert_not_called()
+
+
 def test_index_put_and_get_round_trip():
     cache.index_put([{"id": 42, "url": "https://example.com/42"}])
     assert cache.index_get("42") == "https://example.com/42"

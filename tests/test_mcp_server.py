@@ -26,6 +26,15 @@ async def test_search_tool_returns_pruned_offers(monkeypatch, api_search_payload
     assert offers[0]["city"] == "Warszawa"
 
 
+async def test_search_tool_populates_cache_index(monkeypatch, api_search_payload):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: json.dumps(api_search_payload))
+    async with Client(mcp) as client:
+        result = await client.call_tool("search", {"query": "test laptop", "max": 5})
+    offers = result.structured_content["result"]
+    offer_id = offers[0]["id"]
+    assert cache.index_get(offer_id) == offers[0]["url"]
+
+
 async def test_stats_tool_returns_structured_distribution(monkeypatch, api_search_payload):
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: json.dumps(api_search_payload))
     async with Client(mcp) as client:

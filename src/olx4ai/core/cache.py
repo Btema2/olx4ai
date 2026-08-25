@@ -8,6 +8,7 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
 
@@ -37,6 +38,9 @@ def _cache_path(key: str) -> str:
 
 
 def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
+    if urllib.parse.urlparse(url).scheme not in ("http", "https"):
+        raise SystemExit(f"refusing non-http(s) URL: {url}")
+
     path = _cache_path(url)
     if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:
         with open(path, "r", encoding="utf-8") as fh:
@@ -88,8 +92,10 @@ def index_put(rows: list[dict]) -> None:
     for r in rows:
         if r.get("id") and r.get("url"):
             idx[str(r["id"])] = r["url"]
-    with open(p, "w", encoding="utf-8") as fh:
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(idx, fh)
+    os.replace(tmp, p)
 
 
 def index_get(offer_id: str) -> str | None:

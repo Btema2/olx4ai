@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import os
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server import MCPServer
 
@@ -16,6 +16,9 @@ from olx4ai.core import normalize as norm
 from olx4ai.core.prerendered import extract_prerendered, find_offers
 
 mcp = MCPServer("olx4ai")
+
+SortOption = Literal["relevance", "newest", "price-asc", "price-desc"]
+Condition = Literal["new", "used", "damaged"]
 
 
 class _Args:
@@ -46,8 +49,8 @@ def _search_rows(
     max: int,
     min: int | None,
     max_price: int | None,
-    condition: str | None,
-    sort: str,
+    condition: Condition | None,
+    sort: SortOption,
     city_id: str | None,
     region_id: str | None,
     category: str | None,
@@ -86,8 +89,8 @@ def search(
     max: int = 40,
     min: int | None = None,
     max_price: int | None = None,
-    condition: str | None = None,
-    sort: str = "relevance",
+    condition: Condition | None = None,
+    sort: SortOption = "relevance",
     city_id: str | None = None,
     region_id: str | None = None,
     category: str | None = None,
@@ -97,7 +100,7 @@ def search(
     no_promoted: bool = False,
 ) -> list[dict]:
     """Search OLX offers via the JSON API. Returns pruned offer dicts, no raw HTML."""
-    return _search_rows(
+    rows = _search_rows(
         query,
         max,
         min,
@@ -112,12 +115,17 @@ def search(
         dedupe,
         no_promoted,
     )
+    cache.index_put(rows)
+    return rows
 
 
 @mcp.tool()
 @_mcp_safe
 def stats(
-    query: str, min: int | None = None, max_price: int | None = None, condition: str | None = None
+    query: str,
+    min: int | None = None,
+    max_price: int | None = None,
+    condition: Condition | None = None,
 ) -> dict[str, Any]:
     """Price distribution (min/p25/median/p75/max + histogram) for a query."""
     rows = _search_rows(
@@ -144,8 +152,9 @@ def search_url(url: str, max: int = 40) -> list[dict]:
     """Scrape any OLX listing URL (with OLX's own filters already applied)
     via __PRERENDERED_STATE__."""
     raw = html_client.html_search(url, use_cache=True)
-    rows = [norm.normalize(adapters.adapt_html_offer(o)) for o in raw]
-    return rows[:max]
+    rows = [norm.normalize(adapters.adapt_html_offer(o)) for o in raw][:max]
+    cache.index_put(rows)
+    return rows
 
 
 @mcp.tool()
