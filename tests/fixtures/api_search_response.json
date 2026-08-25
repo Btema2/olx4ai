@@ -1,0 +1,51 @@
+{
+  "data": [
+    {
+      "id": 1000000001,
+      "title": "Test Laptop 14 inch 16GB RAM 512GB SSD",
+      "description": "Great condition laptop.<br />\nBarely used, comes with charger.",
+      "url": "https://www.olx.pl/d/oferta/test-laptop-ID1000000001.html",
+      "created_time": "2026-08-20T10:00:00+02:00",
+      "last_refresh_time": "2026-08-24T09:30:00+02:00",
+      "business": false,
+      "delivery": {"rock": {"active": true, "mode": "AVAILABLE", "offer_id": null}},
+      "promotion": {"top_ad": true},
+      "location": {
+        "city": {"id": 1, "name": "Warszawa", "normalized_name": "warszawa"},
+        "district": {"id": 10, "name": "Mokotów"},
+        "region": {"id": 5, "name": "Mazowieckie", "normalized_name": "mazowieckie"}
+      },
+      "params": [
+        {
+          "key": "price",
+          "name": "Cena",
+          "type": "price",
+          "value": {
+            "value": 1500,
+            "type": "price",
+            "arranged": false,
+            "budget": false,
+            "currency": "PLN",
+            "negotiable": true,
+            "label": "1 500 zł"
+          }
+        },
+        {
+          "key": "state",
+          "name": "Stan",
+          "type": "select",
+          "value": {"key": "used", "label": "Używane"}
+        },
+        {
+          "key": "ram_memory_laptops",
+          "name": "Pamięć RAM",
+          "type": "select",
+          "value": {"key": "16gb", "label": "16 GB"}
+        }
+      ],
+      "user": {"name": "TestSeller", "created": "2021-01-15T08:00:00+02:00"},
+      "photos": [{"url": "https://example.com/photo1.jpg"}, {"url": "https://example.com/photo2.jpg"}]
+    }
+  ],
+  "metadata": {"total_elements": 1}
+}
