@@ -1,5 +1,8 @@
+import email.message
+import io
 import os
 import time
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,6 +24,19 @@ def _fake_response(body: bytes, encoding: str = ""):
     resp.__enter__.return_value = resp
     resp.__exit__.return_value = False
     return resp
+
+
+def _http_error(code: int = 403, retry_after: str | None = None) -> urllib.error.HTTPError:
+    hdrs = email.message.Message()
+    if retry_after is not None:
+        hdrs["Retry-After"] = retry_after
+    return urllib.error.HTTPError(
+        url="https://example.com/x",
+        code=code,
+        msg="Forbidden",
+        hdrs=hdrs,
+        fp=io.BytesIO(b"blocked"),
+    )
 
 
 def test_configure_overrides_domain_and_derived_urls():
@@ -84,6 +100,61 @@ def test_index_put_and_get_round_trip():
     cache.index_put([{"id": 42, "url": "https://example.com/42"}])
     assert cache.index_get("42") == "https://example.com/42"
     assert cache.index_get("999") is None
+
+
+def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b'{"ok": true}')
+    with patch("urllib.request.urlopen", side_effect=[_http_error(), success]) as urlopen:
+        text = cache.fetch("https://example.com/retry-ok", json_mode=True)
+
+    assert text == '{"ok": true}'
+    assert urlopen.call_count == 2
+    # the retry reuses the exact same Request (same URL/headers), not a new one
+    assert urlopen.call_args_list[0].args[0] is urlopen.call_args_list[1].args[0]
+    sleep.assert_called_once_with(cache.RETRY_DELAY)
+
+
+def test_fetch_gives_up_after_one_retry_on_http_error(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    with patch("urllib.request.urlopen", side_effect=[_http_error(), _http_error()]) as urlopen:
+        with pytest.raises(SystemExit, match="HTTP 403 for"):
+            cache.fetch("https://example.com/retry-fail", json_mode=True)
+
+    assert urlopen.call_count == 2  # exactly one retry, not a loop
+    sleep.assert_called_once()
+
+
+def test_fetch_retry_sleeps_for_retry_after_header_value(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b"ok")
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=[_http_error(retry_after="7"), success],
+    ):
+        cache.fetch("https://example.com/retry-after", json_mode=True)
+
+    sleep.assert_called_once_with(7)
+
+
+def test_fetch_retry_falls_back_to_default_when_retry_after_unparseable(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    success = _fake_response(b"ok")
+    with patch(
+        "urllib.request.urlopen",
+        side_effect=[_http_error(retry_after="not-a-number"), success],
+    ):
+        cache.fetch("https://example.com/retry-after-bad", json_mode=True)
+
+    sleep.assert_called_once_with(cache.RETRY_DELAY)
 
 
 def test_index_get_missing_index_file_returns_none():

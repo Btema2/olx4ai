@@ -17,6 +17,7 @@ BASE = f"https://www.{DOMAIN}"
 API = f"{BASE}/api/v1/offers/"
 CACHE_DIR = os.path.expanduser(os.environ.get("OLX4AI_CACHE_DIR", "~/.cache/olx4ai"))
 CACHE_TTL = int(os.environ.get("OLX4AI_CACHE_TTL", "600"))
+RETRY_DELAY = 2  # seconds; used when Retry-After is absent or unparseable
 UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -35,6 +36,25 @@ def configure(domain: str | None = None) -> None:
 def _cache_path(key: str) -> str:
     os.makedirs(CACHE_DIR, exist_ok=True)
     return os.path.join(CACHE_DIR, hashlib.sha1(key.encode()).hexdigest() + ".cache")
+
+
+def _open(req: urllib.request.Request) -> tuple[bytes, str]:
+    """Issue one HTTP request and return (raw body, content-encoding)."""
+    with urllib.request.urlopen(req, timeout=25) as resp:
+        raw = resp.read()
+        enc = (resp.headers.get("Content-Encoding") or "").lower()
+    return raw, enc
+
+
+def _retry_delay(error: urllib.error.HTTPError) -> int:
+    """Seconds to wait before retrying, from Retry-After if present/valid."""
+    retry_after = error.headers.get("Retry-After") if error.headers is not None else None
+    if retry_after is None:
+        return RETRY_DELAY
+    try:
+        return int(retry_after)
+    except ValueError:
+        return RETRY_DELAY
 
 
 def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
@@ -62,11 +82,18 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            raw = resp.read()
-            enc = (resp.headers.get("Content-Encoding") or "").lower()
+        raw, enc = _open(req)
     except urllib.error.HTTPError as e:
-        raise SystemExit(f"HTTP {e.code} for {url}\n{e.read()[:400].decode('utf-8', 'replace')}")
+        delay = _retry_delay(e)
+        time.sleep(delay)
+        try:
+            raw, enc = _open(req)
+        except urllib.error.HTTPError as e2:
+            raise SystemExit(
+                f"HTTP {e2.code} for {url}\n{e2.read()[:400].decode('utf-8', 'replace')}"
+            )
+        except Exception as e2:  # noqa: BLE001
+            raise SystemExit(f"network error for {url}: {e2}")
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"network error for {url}: {e}")
 
