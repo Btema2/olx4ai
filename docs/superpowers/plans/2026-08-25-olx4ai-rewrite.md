@@ -39,14 +39,21 @@
 - MIT license, copyright holder `Btema2` (the GitHub account publishing this
   repo — see `gh auth status`), year 2026.
 - Code follows PEP 8, and every function signature carries type annotations
-  (the one deliberate exception: `args`/`**kwargs` parameters in
-  `filters.post_filter`, `api_client.api_search`, and `mcp_server._Args`
-  that intentionally duck-type across `argparse.Namespace` and the MCP
-  server's own arg holder — a precise type there would need a `Protocol`
-  for no real benefit). `black`, `isort`, and `ruff` (all in the `dev`
-  extra, added in Task 1) are the formatting/lint standard; Task 12 runs
-  them across the full tree once and wires the CI lint gate, rather than
-  gating every intermediate task commit on it.
+  (the deliberate exceptions: `args`/`**kwargs` parameters in
+  `filters.post_filter`, `api_client.api_search`, `format.emit`, and
+  `mcp_server._Args` that intentionally duck-type across
+  `argparse.Namespace`, `SimpleNamespace` (as used in their own tests),
+  and the MCP server's own arg holder — a precise type there would need a
+  `Protocol` for no real benefit; and a plain pass-through decorator
+  wrapper's `*args, **kwargs` internals, e.g. `mcp_server._mcp_safe`'s
+  inner `wrapper` — typing those via `Callable`/`ParamSpec` adds
+  boilerplate with no real safety gain for a 5-line decorator. Every
+  other function signature, including private `_`-prefixed helpers like
+  `mcp_server._search_rows`, gets full annotations). `black`, `isort`,
+  and `ruff` (all in the `dev` extra, added in Task 1) are the
+  formatting/lint standard; Task 12 runs them across the full tree once
+  and wires the CI lint gate, rather than gating every intermediate task
+  commit on it.
 
 ---
 
@@ -2154,8 +2161,10 @@ def _mcp_safe(fn):
     return wrapper
 
 
-def _search_rows(query, max, min, max_price, condition, sort, city_id,
-                  region_id, category, exclude, must, dedupe, no_promoted):
+def _search_rows(query: str, max: int, min: int | None, max_price: int | None,
+                  condition: str | None, sort: str, city_id: str | None,
+                  region_id: str | None, category: str | None, exclude: str | None,
+                  must: str | None, dedupe: bool, no_promoted: bool) -> list[dict]:
     args = _Args(query=query, max=max, offset=0, min=min, max_price=max_price,
                  category=category, city_id=city_id, region_id=region_id,
                  condition=condition, sort=sort, param=None, no_cache=False,
