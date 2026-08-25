@@ -1,0 +1,132 @@
+"""MCP server exposing the core pipeline as tools over stdio."""
+
+from __future__ import annotations
+
+import functools
+import json
+import os
+from typing import Any
+
+from mcp.server import MCPServer
+
+from olx4ai.core import adapters, api_client, cache, filters, html_client
+from olx4ai.core import format as fmt
+from olx4ai.core import normalize as norm
+from olx4ai.core.prerendered import extract_prerendered, find_offers
+
+mcp = MCPServer("olx4ai")
+
+
+class _Args:
+    """Duck-types argparse.Namespace for api_client.api_search() and
+    filters.post_filter(), which were written against CLI args."""
+
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+def _mcp_safe(fn):
+    """cache.fetch() raises SystemExit on network/HTTP errors -- correct for
+    a one-shot CLI process, fatal for a long-running server. Translate it
+    into a normal exception so one failed fetch doesn't kill the server."""
+    @functools.wraps(fn)
+    def wrapper(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except SystemExit as e:
+            raise ValueError(str(e)) from e
+    return wrapper
+
+
+def _search_rows(query: str, max: int, min: int | None, max_price: int | None,
+                  condition: str | None, sort: str, city_id: str | None,
+                  region_id: str | None, category: str | None, exclude: str | None,
+                  must: str | None, dedupe: bool, no_promoted: bool) -> list[dict]:
+    args = _Args(query=query, max=max, offset=0, min=min, max_price=max_price,
+                 category=category, city_id=city_id, region_id=region_id,
+                 condition=condition, sort=sort, param=None, no_cache=False,
+                 exclude=exclude, must=must, dedupe=dedupe, no_promoted=no_promoted)
+    raw = api_client.api_search(args)
+    rows = [norm.normalize(adapters.adapt_api_offer(o)) for o in raw]
+    return filters.post_filter(rows, args)
+
+
+@mcp.tool()
+@_mcp_safe
+def search(query: str, max: int = 40, min: int | None = None,
+           max_price: int | None = None, condition: str | None = None,
+           sort: str = "relevance", city_id: str | None = None,
+           region_id: str | None = None, category: str | None = None,
+           exclude: str | None = None, must: str | None = None,
+           dedupe: bool = False, no_promoted: bool = False) -> list[dict]:
+    """Search OLX offers via the JSON API. Returns pruned offer dicts, no raw HTML."""
+    return _search_rows(query, max, min, max_price, condition, sort, city_id,
+                         region_id, category, exclude, must, dedupe, no_promoted)
+
+
+@mcp.tool()
+@_mcp_safe
+def stats(query: str, min: int | None = None, max_price: int | None = None,
+          condition: str | None = None) -> dict[str, Any]:
+    """Price distribution (min/p25/median/p75/max + histogram) for a query."""
+    rows = _search_rows(query, 100, min, max_price, condition, "relevance",
+                         None, None, None, None, None, False, False)
+    return fmt.compute_stats(rows)
+
+
+@mcp.tool()
+@_mcp_safe
+def search_url(url: str, max: int = 40) -> list[dict]:
+    """Scrape any OLX listing URL (with OLX's own filters already applied)
+    via __PRERENDERED_STATE__."""
+    raw = html_client.html_search(url, use_cache=True)
+    rows = [norm.normalize(adapters.adapt_html_offer(o)) for o in raw]
+    return rows[:max]
+
+
+@mcp.tool()
+@_mcp_safe
+def offer(target: str, desc_chars: int = 1200) -> dict[str, Any]:
+    """Full details (description, specs, seller) for one offer by numeric id or URL."""
+    offer_dict = None
+    adapt = adapters.adapt_api_offer
+    if target.isdigit():
+        try:
+            payload = json.loads(cache.fetch(f"{cache.API}{target}/", json_mode=True))
+            offer_dict = payload.get("data") or payload
+        except SystemExit:
+            offer_dict = None
+        if offer_dict is None:
+            url = cache.index_get(target)
+            if not url:
+                raise ValueError(f"id {target} not in cache index — run search first, "
+                                  f"or pass the full offer URL")
+            target = url
+    if offer_dict is None:
+        state = extract_prerendered(cache.fetch(target, json_mode=False))
+        cands = find_offers(state)
+        offer_dict = cands[0] if cands else None
+        adapt = adapters.adapt_html_offer
+        if offer_dict is None:
+            raise ValueError("could not locate the offer object in the page state")
+    return norm.normalize_detail(adapt(offer_dict), desc_chars)
+
+
+@mcp.tool()
+def clear_cache() -> dict[str, Any]:
+    """Remove all cached HTTP responses (does not clear the id-to-url index)."""
+    n = 0
+    if os.path.isdir(cache.CACHE_DIR):
+        for f in os.listdir(cache.CACHE_DIR):
+            if f.endswith(".cache"):
+                os.remove(os.path.join(cache.CACHE_DIR, f))
+                n += 1
+    return {"removed": n}
+
+
+def main() -> None:
+    mcp.run()
+
+
+if __name__ == "__main__":
+    main()
