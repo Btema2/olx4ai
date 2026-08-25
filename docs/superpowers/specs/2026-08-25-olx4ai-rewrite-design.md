@@ -27,6 +27,9 @@ two problems that block making it a general-purpose, open-source agent tool:
 - Add a fixture-based test suite that runs offline in CI — no dependency on
   hitting the live site to catch regressions.
 - Publish as an open-source GitHub repo named `olx4ai`.
+- Parameterize the target domain (default `olx.pl`) so the same code can
+  point at another OLX Europe site without a code change — see "Domain
+  configuration" below.
 
 ## Non-goals (explicitly out of scope for this rewrite)
 
@@ -34,10 +37,31 @@ two problems that block making it a general-purpose, open-source agent tool:
   without breaking anything).
 - An HTTP/SSE MCP transport or any hosted/remote deployment. This is a
   local subprocess tool; stdio is sufficient for every MCP host in scope.
-- Generalizing beyond OLX.pl to other marketplaces.
+- Generalizing beyond the OLX platform to other marketplaces.
+- Verifying or officially supporting any specific OLX region other than
+  olx.pl — see "Domain configuration" below for what *is* in scope.
 - Any new user-facing features beyond what `olx.py` already does today
   (no new filters, no new commands). This is a structural rewrite + bugfix,
   not a feature expansion.
+
+## Domain configuration
+
+OLX is a brand used across many countries, but not all OLX-branded sites
+run the same platform. OLX Europe sites (olx.pl, olx.ua, olx.bg, olx.ro,
+olx.kz, olx.uz, ...) very likely share this exact tech stack — same
+`/api/v1/offers/` JSON API, same `__PRERENDERED_STATE__` mechanism, just a
+different domain/currency/locale. OLX-branded sites outside Europe (Brazil,
+Pakistan, Nigeria, ...) have historically run on separate infrastructure
+after various regional spin-offs, and there's no way to verify their shape
+without live-testing each one.
+
+Given that, `cache.py`'s `BASE`/`API` constants become a `--domain` CLI flag
+/ `OLX4AI_DOMAIN` env var (default `olx.pl`) instead of hardcoded strings —
+a single parameterization, no per-region field-mapping logic. This makes it
+possible to point the tool at another OLX Europe domain without a code
+change, but the README states plainly that only olx.pl is verified —
+other domains are "try it, file a bug if the shape differs," not a
+supported claim made by this rewrite.
 
 ## The core bug
 
