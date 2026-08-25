@@ -86,3 +86,20 @@ def test_domain_flag_reconfigures_target_urls(monkeypatch):
     sys.argv = ["olx4ai", "--domain", "olx.ua", "search", "test"]
     main()
     assert "olx.ua" in captured["url"]
+
+
+def test_domain_env_var_survives_when_flag_omitted(monkeypatch):
+    captured = {}
+
+    def fake_fetch(url, **kw):
+        captured["url"] = url
+        return json.dumps({"data": [], "metadata": {"total_elements": 0}})
+
+    monkeypatch.setattr(cache, "fetch", fake_fetch)
+    cache.configure("olx.ua")  # simulate what import-time OLX4AI_DOMAIN would have set
+    try:
+        sys.argv = ["olx4ai", "search", "test"]  # no --domain flag
+        main()
+        assert "olx.ua" in captured["url"]
+    finally:
+        cache.configure("olx.pl")
