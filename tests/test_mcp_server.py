@@ -81,6 +81,23 @@ async def test_offer_tool_from_html_fallback(monkeypatch, html_offer_detail_html
     assert result.structured_content["city"] == "Wrocław"
 
 
+async def test_offer_tool_numeric_id_falls_back_to_html_when_api_returns_malformed_json(
+    monkeypatch, html_offer_detail_html
+):
+    cache.index_put([{"id": 999, "url": "https://www.olx.pl/d/oferta/test-vacuum.html"}])
+
+    def fake_fetch(url, **kw):
+        if "api/v1/offers" in url:
+            return "<html>not json</html>"
+        return html_offer_detail_html
+
+    monkeypatch.setattr(cache, "fetch", fake_fetch)
+    async with Client(mcp) as client:
+        result = await client.call_tool("offer", {"target": "999"})
+    assert result.structured_content["price"] == 250
+    assert "Vacuum" in result.structured_content["title"]
+
+
 async def test_offer_tool_translates_fetch_errors_to_tool_errors(monkeypatch):
     def raise_system_exit(url, **kw):
         raise SystemExit("network error for https://example.com: boom")

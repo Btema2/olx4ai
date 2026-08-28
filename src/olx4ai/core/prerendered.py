@@ -50,6 +50,8 @@ def extract_prerendered(html: str) -> dict:
     rest = html[html.index("=", idx) + 1 :].lstrip()
 
     try:
+        if not rest:
+            raise ValueError("empty state after __PRERENDERED_STATE__ assignment")
         if rest[0] in "\"'":
             literal = _scan_js_string(rest)
             if literal[0] == "'":  # normalise to a JSON-parsable double-quoted literal
@@ -63,7 +65,7 @@ def extract_prerendered(html: str) -> dict:
                 inner = urllib.parse.unquote(inner)
             return json.loads(inner)
         return inner
-    except (json.JSONDecodeError, ValueError) as e:
+    except (json.JSONDecodeError, ValueError, IndexError) as e:
         raise SystemExit(f"malformed __PRERENDERED_STATE__ on page: {e}") from e
 
 
