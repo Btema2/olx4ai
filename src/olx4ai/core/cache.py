@@ -9,6 +9,7 @@ import io
 import ipaddress
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -17,7 +18,55 @@ import urllib.parse
 import urllib.request
 import zlib
 
+OLX_DOMAIN_RE = re.compile(r"^olx\.[a-z]{2,3}(\.[a-z]{2})?$")
+ALLOWED_SUBDOMAINS = {"", "www", "m", "api", "static", "pomoc", "jobs"}
+
+
+def _is_valid_olx_domain(domain: str) -> bool:
+    """Check if domain is a valid OLX root/base domain (e.g. olx.pl, olx.ua, olx.ro, olx.com.br)."""
+    return bool(OLX_DOMAIN_RE.match(domain))
+
+
+def _validate_domain(domain: str) -> None:
+    """Validate target OLX domain, rejecting IPs, internal hosts, and non-OLX domains."""
+    clean_host = domain.strip("[]")
+    try:
+        ip = ipaddress.ip_address(clean_host)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise SystemExit(f"refusing private/internal host in domain: {domain}")
+        raise SystemExit(f"refusing non-OLX domain: {domain}")
+    except ValueError:
+        pass
+
+    if domain in ("localhost", "localhost.localdomain") or domain.endswith(
+        (".localhost", ".local", ".internal")
+    ):
+        raise SystemExit(f"refusing private/internal host in domain: {domain}")
+
+    if not _is_valid_olx_domain(domain):
+        raise SystemExit(f"refusing non-OLX domain: {domain}")
+
+
+def _is_valid_olx_host(hostname: str) -> bool:
+    """Check if hostname belongs to an allowed OLX host/subdomain."""
+    parts = hostname.split(".")
+    for i in range(len(parts)):
+        subdomain = ".".join(parts[:i])
+        base_domain = ".".join(parts[i:])
+        if _is_valid_olx_domain(base_domain) and subdomain in ALLOWED_SUBDOMAINS:
+            return True
+    return False
+
+
 DOMAIN = os.environ.get("OLX4AI_DOMAIN", "olx.pl")
+_validate_domain(DOMAIN)
 BASE = f"https://www.{DOMAIN}"
 API = f"{BASE}/api/v1/offers/"
 CACHE_DIR = os.path.expanduser(os.environ.get("OLX4AI_CACHE_DIR", "~/.cache/olx4ai"))
@@ -37,7 +86,9 @@ def configure(domain: str | None = None) -> None:
     """Override the target OLX domain at runtime (e.g. from --domain)."""
     global DOMAIN, BASE, API
     if domain:
-        DOMAIN = domain
+        clean = domain.strip().lower()
+        _validate_domain(clean)
+        DOMAIN = clean
         BASE = f"https://www.{DOMAIN}"
         API = f"{BASE}/api/v1/offers/"
 
@@ -173,18 +224,9 @@ def _validate_url(url: str) -> None:
         raise SystemExit(f"refusing private/internal host in URL: {url}")
 
     # Check allowlist for OLX domains
-    parts = hostname.split(".")
-    is_olx = False
-    if len(parts) >= 2:
-        if parts[-2] == "olx":
-            is_olx = True
-        elif len(parts) >= 3 and parts[-3] == "olx" and parts[-2] in ("com", "co", "org", "net"):
-            is_olx = True
-        elif DOMAIN and (hostname == DOMAIN or hostname.endswith("." + DOMAIN)):
-            is_olx = True
-
-    if not is_olx:
+    if not _is_valid_olx_host(hostname):
         raise SystemExit(f"refusing non-OLX host in URL: {url}")
+
 
 
 def _format_http_error(e: urllib.error.HTTPError, url: str) -> str:
