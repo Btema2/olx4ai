@@ -252,6 +252,8 @@ def index_put(rows: list[dict]) -> None:
     try:
         with open(p, encoding="utf-8") as fh:
             idx = json.load(fh)
+        if not isinstance(idx, dict):
+            idx = {}
     except Exception:  # noqa: BLE001
         idx = {}
     for r in rows:
@@ -272,6 +274,9 @@ def index_put(rows: list[dict]) -> None:
 def index_get(offer_id: str) -> str | None:
     try:
         with open(os.path.join(CACHE_DIR, "index.json"), encoding="utf-8") as fh:
-            return json.load(fh).get(str(offer_id))
+            idx = json.load(fh)
+        if not isinstance(idx, dict):
+            return None
+        return idx.get(str(offer_id))
     except Exception:  # noqa: BLE001
         return None

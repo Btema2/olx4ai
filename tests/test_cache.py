@@ -211,6 +211,16 @@ def test_index_put_prunes_oldest_entries_when_exceeding_max(monkeypatch):
     assert cache.index_get("7") == "https://www.olx.pl/7"
 
 
+def test_index_handles_corrupted_non_dict_file(tmp_path):
+    # Write non-dict JSON to index.json
+    p = tmp_path / "index.json"
+    p.write_text("[]", encoding="utf-8")
+    assert cache.index_get("1") is None
+    # Should safely overwrite with dict on index_put
+    cache.index_put([{"id": 10, "url": "https://www.olx.pl/10"}])
+    assert cache.index_get("10") == "https://www.olx.pl/10"
+
+
 def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
     sleep = MagicMock()
     monkeypatch.setattr(cache.time, "sleep", sleep)

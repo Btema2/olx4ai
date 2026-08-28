@@ -171,3 +171,23 @@ async def test_search_url_tool_rejects_plaintext_http():
     async with Client(mcp) as client:
         result = await client.call_tool("search_url", {"url": "http://www.olx.pl/oferty/q-test/"})
     assert result.is_error is True
+
+
+async def test_search_tool_rejects_zero_or_negative_max():
+    async with Client(mcp) as client:
+        res1 = await client.call_tool("search", {"query": "laptop", "max": 0})
+        assert res1.is_error is True
+        res2 = await client.call_tool("search", {"query": "laptop", "max": -5})
+        assert res2.is_error is True
+
+
+async def test_search_url_tool_rejects_zero_or_negative_max():
+    async with Client(mcp) as client:
+        res1 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max": 0}
+        )
+        assert res1.is_error is True
+        res2 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max": -5}
+        )
+        assert res2.is_error is True
