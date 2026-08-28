@@ -301,8 +301,10 @@ def test_fetch_non_404_error_includes_body_preview(monkeypatch):
     with patch.object(cache, "_open", side_effect=[err]):
         with pytest.raises(SystemExit) as exc_info:
             cache.fetch("https://www.olx.pl/bad-request", json_mode=True)
-        assert str(exc_info.value) == "HTTP 400 for https://www.olx.pl/bad-request\ncustom bad request body"
-
+        assert (
+            str(exc_info.value)
+            == "HTTP 400 for https://www.olx.pl/bad-request\ncustom bad request body"
+        )
 
 
 def test_fetch_retries_on_5xx_status(monkeypatch):

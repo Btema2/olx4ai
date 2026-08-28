@@ -91,4 +91,3 @@ def test_html_search_preserves_query_params_across_pages(monkeypatch, html_listi
     assert len(fetched_urls) == 2
     assert "search%5Bfilter_enum_state%5D%5B0%5D=used" in fetched_urls[1]
     assert "page=2" in fetched_urls[1]
-

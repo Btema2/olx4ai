@@ -225,5 +225,3 @@ def test_mcp_entrypoint_missing_dependency(monkeypatch):
     monkeypatch.setattr(server, "mcp", server._DummyMCP())
     with pytest.raises(SystemExit, match="olx4ai-mcp requires the mcp extra"):
         server.main()
-
-

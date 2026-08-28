@@ -235,7 +235,6 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"network error for {url}: {e}")
 
-
     try:
         if enc == "gzip":
             raw = gzip.decompress(raw)

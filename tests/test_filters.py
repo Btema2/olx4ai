@@ -189,4 +189,3 @@ def test_post_filter_sort_relevance_or_unrecognized_preserves_order():
     ]
     out = post_filter(rows, SimpleNamespace(sort="relevance"))
     assert [r["title"] for r in out] == ["B", "A", "D"]
-

@@ -275,5 +275,3 @@ def test_url_command_sorts_by_price_asc_and_desc(monkeypatch, capsys, html_listi
     # In price-asc, Model A (900) should appear before Model B (1800)
     assert "Model A" in lines[0]
     assert "Model B" in lines[1]
-
-

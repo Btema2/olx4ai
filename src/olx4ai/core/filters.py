@@ -65,4 +65,3 @@ def post_filter(rows: list[dict], args) -> list[dict]:
         )
 
     return out
-

@@ -6,7 +6,6 @@ import time
 import urllib.parse
 from typing import Any
 
-
 from olx4ai.core import api_client, cache
 from olx4ai.core.prerendered import extract_prerendered, find_offers
 
@@ -23,9 +22,7 @@ def _build_page_url(url: str, page_num: int) -> str:
     )
 
 
-def html_search(
-    url: str, use_cache: bool, max_results: int | None = None
-) -> list[dict]:
+def html_search(url: str, use_cache: bool, max_results: int | None = None) -> list[dict]:
     parsed = urllib.parse.urlsplit(url)
     qs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
     page_param = next((v for k, v in qs if k == "page"), None)
@@ -80,4 +77,3 @@ def html_search(
             time.sleep(api_client.SLEEP_BETWEEN_PAGES)
 
     return all_offers
-

@@ -43,7 +43,6 @@ SortOption = Literal["relevance", "newest", "price-asc", "price-desc"]
 Condition = Literal["new", "used", "damaged"]
 
 
-
 class _Args:
     """Duck-types argparse.Namespace for api_client.api_search() and
     filters.post_filter(), which were written against CLI args."""
@@ -210,7 +209,6 @@ def search_url(
     return rows
 
 
-
 @mcp.tool()
 @_mcp_safe
 def offer(target: str, desc_chars: int = 4000) -> dict[str, Any]:
@@ -263,7 +261,6 @@ def main() -> None:
             "uv tool install 'olx4ai[mcp]'"
         )
     mcp.run()
-
 
 
 if __name__ == "__main__":
