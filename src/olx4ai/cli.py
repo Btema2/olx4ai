@@ -26,6 +26,10 @@ CHEAT = """olx4ai — context-cheap OLX browser. One short line per offer, no HT
 
 Line format: N. [id] price flags condition city/district age title
 Flags: ~ negotiable | D delivery | B business seller | * promoted
+Filtering & Deduplication:
+  --exclude "w1,w2": drops offers where ANY word is in title (case-insensitive whole-word \\bword\\b)
+  --must "w1,w2": keeps offers only if ALL words are in title (AND condition, case-insensitive whole-word \\bword\\b)
+  --dedupe: deduplicates offers based on (title.lower().strip(), price) only (collapses identical title+price across cities/sellers)
 Tips: start with `stats`, then narrow with --min/--max-price. URLs are omitted by
 default (they are long) — use `offer <id>`, or --urls if you really need them.
 Responses are cached 10 min, so re-running a query costs nothing.
@@ -164,9 +168,19 @@ def build_parser() -> argparse.ArgumentParser:
             "(unvalidated escape hatch passed directly to OLX API query string)",
         )
 
-        sp.add_argument("--exclude", help="comma-separated words to drop from titles")
-        sp.add_argument("--must", help="comma-separated words the title must contain")
-        sp.add_argument("--dedupe", action="store_true")
+        sp.add_argument(
+            "--exclude",
+            help="comma-separated words to drop from titles (drops if ANY word matches whole-word case-insensitively)",
+        )
+        sp.add_argument(
+            "--must",
+            help="comma-separated words the title must contain (keeps only if ALL words match whole-word case-insensitively)",
+        )
+        sp.add_argument(
+            "--dedupe",
+            action="store_true",
+            help="deduplicate offers based on (title, price) only across cities and sellers",
+        )
         sp.add_argument("--no-promoted", action="store_true")
         sp.add_argument("--json", action="store_true")
         sp.add_argument("--fields", help="json mode: comma-separated field whitelist")

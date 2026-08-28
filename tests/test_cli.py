@@ -112,6 +112,18 @@ def test_agent_help_documents_url_filters_and_city_slug_pattern(capsys):
     assert "/oferty/w-*" in out
 
 
+def test_agent_help_documents_filter_semantics_and_dedupe(capsys):
+    sys.argv = ["olx4ai", "agent-help"]
+    main()
+    out = capsys.readouterr().out
+    assert "--exclude" in out
+    assert "--must" in out
+    assert "--dedupe" in out
+    assert "whole-word" in out
+    assert "title" in out and "price" in out
+
+
+
 def test_clear_cache_removes_cached_files(tmp_path, capsys):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")
