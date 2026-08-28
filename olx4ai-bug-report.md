@@ -243,6 +243,30 @@ the other is 4xx-broken. Neither is shippable as-is.
 
 ---
 
+## NEW REVIEW FINDINGS (N1 - N4)
+
+### N1 — `url` path ignores `--sort`
+- **File:** `src/olx4ai/core/filters.py`, `src/olx4ai/mcp_server.py`
+- **Root cause:** `post_filter` filtered on min/max/condition but did not implement in-memory sorting.
+- **Fix:** Added `price-asc` and `price-desc` in-memory sorting to `post_filter` (preserving non-price sorts and putting unpriced offers at the end), wired `sort` in MCP `search_url`.
+
+### N2 — `url` path fetches exactly ONE page → silent ~40-offer cap
+- **File:** `src/olx4ai/core/html_client.py`, `src/olx4ai/cli.py`, `src/olx4ai/mcp_server.py`
+- **Root cause:** `html_search()` fetched only the initial URL without `page=N` pagination.
+- **Fix:** Added pagination loop `_build_page_url` to fetch sequential pages until `max_results` is reached or no new offer IDs are discovered.
+
+### N3 — `olx4ai-mcp` ships broken without the [mcp] extra
+- **File:** `src/olx4ai/mcp_server.py`
+- **Root cause:** Top-level import `from mcp.server import MCPServer` raised unhandled `ModuleNotFoundError` when the optional extra wasn't installed.
+- **Fix:** Handled missing `MCPServer` import gracefully with `_DummyMCP` and clear `SystemExit("olx4ai-mcp requires the mcp extra: pip install 'olx4ai[mcp]' or uv tool install 'olx4ai[mcp]'")`.
+
+### N4 — 404 response dumps raw HTML head
+- **File:** `src/olx4ai/core/cache.py`
+- **Root cause:** `HTTPError` handler dumped the first 400 bytes of the response body, which for 404s was raw HTML boilerplate.
+- **Fix:** Added `_format_http_error` to return clean `HTTP 404 for <url>` without body preview for 404 errors.
+
+---
+
 ## Verification Checklist
 
 | Bug | Status |
@@ -263,7 +287,10 @@ the other is 4xx-broken. Neither is shippable as-is.
 | V1 (SSRF) | **FIXED** — URL host allowlist and private/internal IP/domain blocking |
 | V2 (plaintext HTTP) | **FIXED** — TLS enforced (refuses non-https URLs) |
 | V3 (--param injection) | **FIXED** — documented security boundary (unvalidated escape hatch) |
-
+| N1 (url ignores --sort) | **FIXED** — in-memory post_filter handles price-asc and price-desc sorting |
+| N2 (url single page cap) | **FIXED** — html_search paginates sequential pages up to max_results |
+| N3 (olx4ai-mcp without extra) | **FIXED** — clean SystemExit error message guiding user to install [mcp] extra |
+| N4 (404 dumps raw HTML) | **FIXED** — clean HTTP 404 error message without noisy HTML body preview |
 
 ---
 
@@ -271,9 +298,10 @@ the other is 4xx-broken. Neither is shippable as-is.
 
 1. **B1 + B2** (fix the two criticals — the tool is unusable without both)
 2. **V1** (SSRF — security, easy fix: host allowlist)
-3. **B3** (silent data loss — agents will hit this immediately)
+3. **B3 + N1 + N2** (silent data loss in URL path)
 4. **B4** (empty query — agents will hit this immediately)
 5. **B5** (silent field drop — agents will hit this with --json)
 6. **B8** (malformed JSON — crash without clean exit)
 7. **V2** (plaintext HTTP)
-8. **B6, B7, B9, B10, B11, B12, B13, V3** (low priority)
+8. **N3, N4, B6, B7, B9, B10, B11, B12, B13, V3** (low/medium priority)
+

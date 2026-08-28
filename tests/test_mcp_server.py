@@ -203,3 +203,25 @@ async def test_search_url_tool_rejects_negative_min_or_max_price():
             "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max_price": -10}
         )
         assert res2.is_error is True
+
+
+async def test_search_url_tool_supports_sort(monkeypatch, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "search_url",
+            {"url": "https://www.olx.pl/oferty/q-test/", "sort": "price-desc"},
+        )
+        offers = result.structured_content["result"]
+        assert len(offers) == 2
+        assert offers[0]["price"] == 1800
+        assert offers[1]["price"] == 900
+
+
+def test_mcp_entrypoint_missing_dependency(monkeypatch):
+    import olx4ai.mcp_server as server
+
+    monkeypatch.setattr(server, "MCPServer", None)
+    monkeypatch.setattr(server, "mcp", server._DummyMCP())
+    with pytest.raises(SystemExit, match="olx4ai-mcp requires the mcp extra"):
+        server.main()
