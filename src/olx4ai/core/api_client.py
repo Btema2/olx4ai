@@ -20,6 +20,14 @@ SLEEP_BETWEEN_PAGES = 0.7
 
 
 def api_search(args) -> list[dict]:
+    """Execute a search against OLX JSON API.
+
+    Note: `args.param` is an intentional escape hatch passing unvalidated
+    raw query parameters directly to the OLX API.
+    """
+    if getattr(args, "max", None) is not None and args.max <= 0:
+        raise SystemExit("max offers must be greater than 0")
+
     query = getattr(args, "query", None)
     if query is None or not str(query).strip():
         raise SystemExit("search query cannot be empty")
@@ -34,9 +42,14 @@ def api_search(args) -> list[dict]:
             "filter_refiners": "spell_checker",
         }
         if args.min is not None:
+            if args.min < 0:
+                raise SystemExit("min price cannot be negative")
             params["filter_float_price:from"] = args.min
         if args.max_price is not None:
+            if args.max_price < 0:
+                raise SystemExit("max price cannot be negative")
             params["filter_float_price:to"] = args.max_price
+
         if args.category:
             params["category_id"] = args.category
         if args.city_id:
@@ -48,7 +61,12 @@ def api_search(args) -> list[dict]:
         if SORTS.get(args.sort):
             params["sort_by"] = SORTS[args.sort]
         for kv in args.param or []:
+            if "=" not in kv:
+                continue
             k, _, v = kv.partition("=")
+            k = k.strip()
+            if not k:
+                continue
             params[k] = v
 
         url = cache.API + "?" + urllib.parse.urlencode(params)

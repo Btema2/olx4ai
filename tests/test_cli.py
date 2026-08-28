@@ -120,7 +120,7 @@ def test_clear_cache_removes_cached_files(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "removed 1 cached responses" in out
     assert not (tmp_path / "abc.cache").exists()
-    assert (tmp_path / "index.json").exists()
+    assert not (tmp_path / "index.json").exists()
 
 
 def test_domain_flag_reconfigures_target_urls(monkeypatch):
@@ -204,4 +204,46 @@ def test_offer_command_rejects_ssrf_url():
 def test_url_command_rejects_plaintext_http():
     sys.argv = ["olx4ai", "url", "http://www.olx.pl/oferty/q-test/"]
     with pytest.raises(SystemExit, match="refusing non-https URL"):
+        main()
+
+
+def test_search_rejects_negative_min():
+    sys.argv = ["olx4ai", "search", "test", "--min", "-10"]
+    with pytest.raises(SystemExit, match="min price cannot be negative"):
+        main()
+
+
+def test_search_rejects_negative_max_price():
+    sys.argv = ["olx4ai", "search", "test", "--max-price", "-10"]
+    with pytest.raises(SystemExit, match="max price cannot be negative"):
+        main()
+
+
+def test_url_command_rejects_negative_min():
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--min", "-10"]
+    with pytest.raises(SystemExit, match="min price cannot be negative"):
+        main()
+
+
+def test_url_command_rejects_negative_max_price():
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--max-price", "-10"]
+    with pytest.raises(SystemExit, match="max price cannot be negative"):
+        main()
+
+
+def test_search_rejects_zero_or_negative_max():
+    sys.argv = ["olx4ai", "search", "test", "--max", "0"]
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
+        main()
+    sys.argv = ["olx4ai", "search", "test", "--max", "-5"]
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
+        main()
+
+
+def test_url_command_rejects_zero_or_negative_max():
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--max", "0"]
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
+        main()
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--max", "-5"]
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
         main()

@@ -117,9 +117,11 @@ async def test_offer_tool_desc_chars_default_matches_cli():
 
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
+    (tmp_path / "index.json").write_text("{}")
     async with Client(mcp) as client:
         result = await client.call_tool("clear_cache", {})
     assert result.structured_content["removed"] == 1
+    assert not (tmp_path / "index.json").exists()
 
 
 async def test_search_url_tool_applies_min_and_max_price_filters(monkeypatch, html_listing_html):
@@ -169,3 +171,35 @@ async def test_search_url_tool_rejects_plaintext_http():
     async with Client(mcp) as client:
         result = await client.call_tool("search_url", {"url": "http://www.olx.pl/oferty/q-test/"})
     assert result.is_error is True
+
+
+async def test_search_tool_rejects_zero_or_negative_max():
+    async with Client(mcp) as client:
+        res1 = await client.call_tool("search", {"query": "laptop", "max": 0})
+        assert res1.is_error is True
+        res2 = await client.call_tool("search", {"query": "laptop", "max": -5})
+        assert res2.is_error is True
+
+
+async def test_search_url_tool_rejects_zero_or_negative_max():
+    async with Client(mcp) as client:
+        res1 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max": 0}
+        )
+        assert res1.is_error is True
+        res2 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max": -5}
+        )
+        assert res2.is_error is True
+
+
+async def test_search_url_tool_rejects_negative_min_or_max_price():
+    async with Client(mcp) as client:
+        res1 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "min": -10}
+        )
+        assert res1.is_error is True
+        res2 = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max_price": -10}
+        )
+        assert res2.is_error is True

@@ -46,7 +46,14 @@ def cmd_stats(args: argparse.Namespace) -> None:
 
 
 def cmd_url(args: argparse.Namespace) -> None:
+    if getattr(args, "max", None) is not None and args.max <= 0:
+        raise SystemExit("max offers must be greater than 0")
+    if getattr(args, "min", None) is not None and args.min < 0:
+        raise SystemExit("min price cannot be negative")
+    if getattr(args, "max_price", None) is not None and args.max_price < 0:
+        raise SystemExit("max price cannot be negative")
     raw = html_client.html_search(args.target, use_cache=not args.no_cache)
+
     rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
         : args.max
     ]
@@ -115,6 +122,9 @@ def cmd_clear_cache(args: argparse.Namespace) -> None:
             if f.endswith(".cache"):
                 os.remove(os.path.join(cache.CACHE_DIR, f))
                 n += 1
+        index_file = os.path.join(cache.CACHE_DIR, "index.json")
+        if os.path.exists(index_file):
+            os.remove(index_file)
     print(f"removed {n} cached responses")
 
 
@@ -146,8 +156,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument(
             "--param",
             action="append",
-            help="raw API param, repeatable, e.g. --param filter_enum_hdd_type[0]=ssd",
+            help="raw API param, repeatable, e.g. --param filter_enum_hdd_type[0]=ssd "
+            "(unvalidated escape hatch passed directly to OLX API query string)",
         )
+
         sp.add_argument("--exclude", help="comma-separated words to drop from titles")
         sp.add_argument("--must", help="comma-separated words the title must contain")
         sp.add_argument("--dedupe", action="store_true")

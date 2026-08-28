@@ -99,10 +99,18 @@ fetch (disk-cached) → adapters.adapt_*_offer() → normalize()/normalize_detai
 
 - `core/cache.fetch()` caches raw HTTP response bodies on disk at
   `~/.cache/olx4ai/<sha1(url)>.cache` (override dir via `OLX4AI_CACHE_DIR`, TTL via
-  `OLX4AI_CACHE_TTL`, default 600s). `clear-cache` only removes these files.
+  `OLX4AI_CACHE_TTL`, default 600s).
 - Separately, `core/cache.index_put()`/`index_get()` maintain
-  `~/.cache/olx4ai/index.json`, an id→url map with no TTL. `clear-cache` does **not**
-  clear this file.
+  `~/.cache/olx4ai/index.json`, an id→url map (bounded by `OLX4AI_MAX_INDEX_ENTRIES`,
+  default 5000, pruned via FIFO/LRU). `clear-cache` removes both cached HTTP response files
+  and `index.json`.
+
+### Raw Query Parameters (`--param`)
+
+- `--param` is an intentional escape hatch that allows passing raw, repeatable query parameters
+  directly to the OLX API (e.g. `--param filter_enum_hdd_type[0]=ssd`). It bypasses client-side
+  schema filtering and sends the parameters straight to the upstream endpoint.
+
 
 ### Domain configuration
 
