@@ -48,7 +48,12 @@ def cmd_stats(args: argparse.Namespace) -> None:
 def cmd_url(args: argparse.Namespace) -> None:
     if getattr(args, "max", None) is not None and args.max <= 0:
         raise SystemExit("max offers must be greater than 0")
+    if getattr(args, "min", None) is not None and args.min < 0:
+        raise SystemExit("min price cannot be negative")
+    if getattr(args, "max_price", None) is not None and args.max_price < 0:
+        raise SystemExit("max price cannot be negative")
     raw = html_client.html_search(args.target, use_cache=not args.no_cache)
+
     rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
         : args.max
     ]

@@ -163,6 +163,10 @@ def search_url(
     via __PRERENDERED_STATE__."""
     if max <= 0:
         raise SystemExit("max offers must be greater than 0")
+    if min is not None and min < 0:
+        raise SystemExit("min price cannot be negative")
+    if max_price is not None and max_price < 0:
+        raise SystemExit("max price cannot be negative")
     raw = html_client.html_search(url, use_cache=True)
 
     args = _Args(
