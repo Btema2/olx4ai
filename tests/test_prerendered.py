@@ -31,6 +31,19 @@ def test_extract_prerendered_raises_when_marker_absent():
         extract_prerendered("<html><body>nothing here</body></html>")
 
 
+def test_extract_prerendered_raises_on_malformed_json():
+    import pytest
+
+    with pytest.raises(SystemExit, match="malformed __PRERENDERED_STATE__"):
+        extract_prerendered(
+            "<html><body><script>window.__PRERENDERED_STATE__ = {invalid json};</script></body></html>"
+        )
+    with pytest.raises(SystemExit, match="malformed __PRERENDERED_STATE__"):
+        extract_prerendered(
+            '<html><body><script>window.__PRERENDERED_STATE__ = "{invalid json string";</script></body></html>'
+        )
+
+
 def pytest_raises_system_exit():
     import pytest
 

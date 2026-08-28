@@ -62,8 +62,8 @@ def cmd_offer(args: argparse.Namespace) -> None:
             payload = json.loads(
                 cache.fetch(f"{cache.API}{target}/", json_mode=True, use_cache=not args.no_cache)
             )
-            offer = payload.get("data") or payload
-        except SystemExit:
+            offer = payload.get("data") or payload if isinstance(payload, dict) else None
+        except (SystemExit, json.JSONDecodeError, ValueError):
             offer = None
         if offer is None:
             url = cache.index_get(target)

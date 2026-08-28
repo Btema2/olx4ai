@@ -250,18 +250,18 @@ the other is 4xx-broken. Neither is shippable as-is.
 | B1 (stock 403) | **FIXED** — PR #1 (curl --http2 subprocess implementation) |
 | B2 (py3.13 HTTPError) | **FIXED** — PR #1 (5-arg constructor + header parsing) |
 | B3 (url ignores --min) | **FIXED** — in-memory post_filter handles min, max_price, and condition |
-| B4 (empty query) | **Confirmed** — returns full catalog, exit 0 (Queued) |
-| B5 (--fields whitespace) | **Confirmed** — price field dropped (Queued) |
+| B4 (empty query) | **FIXED** — rejects empty/whitespace query with SystemExit |
+| B5 (--fields whitespace) | **FIXED** — whitespace stripped from field whitelist tokens |
 | B6 (negative --min) | **Confirmed** — 403 + B2 crash (Queued) |
 | B7 (--title-chars 0) | **Confirmed** — off-by-one truncation (Queued) |
-| B8 (malformed JSON) | **Confirmed** — unhandled traceback (simulated) (Queued) |
+| B8 (malformed JSON) | **FIXED** — clean SystemExit error message on malformed JSON |
 | B9 (clear-cache index) | **Confirmed** — index.json persists (Queued) |
 | B10 (--param nodash) | **Confirmed** — empty value sent (Queued) |
 | B11 (--max 0) | **Confirmed** — silent "no results" (Queued) |
 | B12 (non-atomic cache write) | **FIXED** — PR #1 (atomic .tmp + os.replace write) |
 | B13 (index unbounded) | **Confirmed** — code inspection (Queued) |
 | V1 (SSRF) | **FIXED** — URL host allowlist and private/internal IP/domain blocking |
-| V2 (plaintext HTTP) | **Confirmed** — http:// accepted (Queued) |
+| V2 (plaintext HTTP) | **FIXED** — TLS enforced (refuses non-https URLs) |
 | V3 (--param injection) | **Confirmed** — by design, needs documentation (Queued) |
 
 ---

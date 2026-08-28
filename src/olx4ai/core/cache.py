@@ -140,8 +140,8 @@ def _retry_delay(error: urllib.error.HTTPError) -> int:
 
 def _validate_url(url: str) -> None:
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise SystemExit(f"refusing non-http(s) URL: {url}")
+    if parsed.scheme != "https":
+        raise SystemExit(f"refusing non-https URL: {url}")
     hostname = parsed.hostname
     if not hostname:
         raise SystemExit(f"refusing URL without host: {url}")

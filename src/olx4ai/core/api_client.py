@@ -20,12 +20,17 @@ SLEEP_BETWEEN_PAGES = 0.7
 
 
 def api_search(args) -> list[dict]:
+    query = getattr(args, "query", None)
+    if query is None or not str(query).strip():
+        raise SystemExit("search query cannot be empty")
+    query_str = str(query).strip()
+
     rows, offset = [], args.offset
     while len(rows) < args.max:
         params = {
             "offset": offset,
             "limit": min(50, args.max - len(rows)),
-            "query": args.query,
+            "query": query_str,
             "filter_refiners": "spell_checker",
         }
         if args.min is not None:
@@ -47,7 +52,13 @@ def api_search(args) -> list[dict]:
             params[k] = v
 
         url = cache.API + "?" + urllib.parse.urlencode(params)
-        payload = json.loads(cache.fetch(url, json_mode=True, use_cache=not args.no_cache))
+        raw_resp = cache.fetch(url, json_mode=True, use_cache=not args.no_cache)
+        try:
+            payload = json.loads(raw_resp)
+        except (json.JSONDecodeError, ValueError) as e:
+            raise SystemExit(f"malformed JSON response from {url}: {e}") from e
+        if not isinstance(payload, dict):
+            raise SystemExit(f"malformed JSON response from {url}: expected JSON object")
         batch = payload.get("data") or []
         if not batch:
             break

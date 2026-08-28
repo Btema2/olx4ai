@@ -97,6 +97,15 @@ def test_emit_json_mode_honors_field_whitelist(capsys, tmp_path, monkeypatch):
     assert out == [{"id": 1, "price": 1000}]
 
 
+def test_emit_json_mode_strips_whitespace_in_fields(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr(cache, "CACHE_DIR", str(tmp_path))
+    rows = [offer_row()]
+    args = SimpleNamespace(json=True, fields="id,title, price", title_chars=80, urls=False)
+    fmt.emit(rows, args, "label")
+    out = json.loads(capsys.readouterr().out)
+    assert out == [{"id": 1, "title": "Test Offer", "price": 1000}]
+
+
 def test_emit_writes_to_index(tmp_path, monkeypatch):
     monkeypatch.setattr(cache, "CACHE_DIR", str(tmp_path))
     rows = [offer_row(id=42, url="https://example.com/42")]

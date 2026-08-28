@@ -76,7 +76,7 @@ def print_stats(rows: list[dict], label: str) -> None:
 def emit(rows: list[dict], args, label: str) -> None:
     cache.index_put(rows)
     if args.json:
-        fields = args.fields.split(",") if args.fields else None
+        fields = {f.strip() for f in args.fields.split(",") if f.strip()} if args.fields else None
         data = [{k: v for k, v in r.items() if not fields or k in fields} for r in rows]
         print(json.dumps(data, ensure_ascii=False, separators=(",", ":")))
         return
