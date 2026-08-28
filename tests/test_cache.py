@@ -6,6 +6,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+import zlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -306,6 +307,35 @@ def test_open_http_error_decompresses_gzip_error_body():
     err = exc_info.value
     assert err.code == 404
     assert err.read() == b"human readable error message"
+
+
+def test_open_http_error_decompresses_deflate_error_body():
+    compress_obj = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+    compressed_body = compress_obj.compress(b"deflate error message") + compress_obj.flush()
+
+    def fake_subprocess_run(cmd, capture_output=True):
+        header_idx = cmd.index("-D") + 1
+        header_path = cmd[header_idx]
+        with open(header_path, "wb") as f:
+            f.write(b"HTTP/2 404\r\ncontent-encoding: deflate\r\n\r\n")
+        return subprocess.CompletedProcess(
+            args=cmd, returncode=0, stdout=compressed_body, stderr=b""
+        )
+
+    req = urllib.request.Request("https://example.com/deflate-not-found")
+    with patch("subprocess.run", side_effect=fake_subprocess_run):
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            cache._open(req)
+
+    err = exc_info.value
+    assert err.code == 404
+    assert err.read() == b"deflate error message"
+
+
+def test_fetch_decompression_error():
+    with patch.object(cache, "_open", return_value=(b"corrupted-not-gzip", "gzip")):
+        with pytest.raises(SystemExit, match="decompression error for"):
+            cache.fetch("https://example.com/corrupt", json_mode=True)
 
 
 def test_open_curl_failure_raises_url_error():

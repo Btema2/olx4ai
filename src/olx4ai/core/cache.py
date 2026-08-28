@@ -158,7 +158,6 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
             "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
             "Accept-Encoding": "gzip, deflate",
             "Referer": BASE + "/",
-            "Connection": "close",
         },
     )
     try:
@@ -182,14 +181,19 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"network error for {url}: {e}")
 
-    if enc == "gzip":
-        raw = gzip.decompress(raw)
-    elif enc == "deflate":
-        raw = zlib.decompress(raw, -zlib.MAX_WBITS)
+    try:
+        if enc == "gzip":
+            raw = gzip.decompress(raw)
+        elif enc == "deflate":
+            raw = zlib.decompress(raw, -zlib.MAX_WBITS)
+    except Exception as e:  # noqa: BLE001
+        raise SystemExit(f"decompression error for {url}: {e}")
     text = raw.decode("utf-8", "replace")
 
-    with open(path, "w", encoding="utf-8") as fh:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(text)
+    os.replace(tmp, path)
     return text
 
 
