@@ -247,22 +247,22 @@ the other is 4xx-broken. Neither is shippable as-is.
 
 | Bug | Status |
 |---|---|
-| B1 (stock 403) | **Confirmed** — live reproduction |
-| B2 (py3.13 HTTPError) | **Confirmed** — live reproduction |
-| B3 (url ignores --min) | **Confirmed** — 50 zł offers returned with --min 1800 |
-| B4 (empty query) | **Confirmed** — returns full catalog, exit 0 |
-| B5 (--fields whitespace) | **Confirmed** — price field dropped |
-| B6 (negative --min) | **Confirmed** — 403 + B2 crash |
-| B7 (--title-chars 0) | **Confirmed** — off-by-one truncation |
-| B8 (malformed JSON) | **Confirmed** — unhandled traceback (simulated) |
-| B9 (clear-cache index) | **Confirmed** — index.json persists |
-| B10 (--param nodash) | **Confirmed** — empty value sent |
-| B11 (--max 0) | **Confirmed** — silent "no results" |
-| B12 (non-atomic cache write) | **Confirmed** — code inspection |
-| B13 (index unbounded) | **Confirmed** — code inspection |
-| V1 (SSRF) | **Confirmed** — localhost + metadata accepted |
-| V2 (plaintext HTTP) | **Confirmed** — http:// accepted |
-| V3 (--param injection) | **Confirmed** — by design, needs documentation |
+| B1 (stock 403) | **FIXED** — PR #1 (curl --http2 subprocess implementation) |
+| B2 (py3.13 HTTPError) | **FIXED** — PR #1 (5-arg constructor + header parsing) |
+| B3 (url ignores --min) | **Confirmed** — 50 zł offers returned with --min 1800 (Queued) |
+| B4 (empty query) | **Confirmed** — returns full catalog, exit 0 (Queued) |
+| B5 (--fields whitespace) | **Confirmed** — price field dropped (Queued) |
+| B6 (negative --min) | **Confirmed** — 403 + B2 crash (Queued) |
+| B7 (--title-chars 0) | **Confirmed** — off-by-one truncation (Queued) |
+| B8 (malformed JSON) | **Confirmed** — unhandled traceback (simulated) (Queued) |
+| B9 (clear-cache index) | **Confirmed** — index.json persists (Queued) |
+| B10 (--param nodash) | **Confirmed** — empty value sent (Queued) |
+| B11 (--max 0) | **Confirmed** — silent "no results" (Queued) |
+| B12 (non-atomic cache write) | **FIXED** — PR #1 (atomic .tmp + os.replace write) |
+| B13 (index unbounded) | **Confirmed** — code inspection (Queued) |
+| V1 (SSRF) | **Confirmed** — localhost + metadata accepted (Queued - Next Priority) |
+| V2 (plaintext HTTP) | **Confirmed** — http:// accepted (Queued) |
+| V3 (--param injection) | **Confirmed** — by design, needs documentation (Queued) |
 
 ---
 
