@@ -106,7 +106,7 @@ def _open(req: urllib.request.Request | str) -> tuple[bytes, str]:
     with tempfile.NamedTemporaryFile(delete=False) as hf:
         header_path = hf.name
     try:
-        cmd = ["curl", "--http2", "-s", "-S", "-L", "--max-time", "25", "-D", header_path]
+        cmd = ["curl", "--http2", "-s", "-S", "--max-time", "25", "-D", header_path]
         for k, v in header_items:
             cmd.extend(["-H", f"{k}: {v}"])
         cmd.append(url)

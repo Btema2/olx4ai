@@ -415,7 +415,8 @@ def test_open_success_curl_command_and_headers():
     assert raw == b"raw body bytes"
     assert enc == "gzip"
     cmd_called = mock_run.call_args[0][0]
-    assert cmd_called[:5] == ["curl", "--http2", "-s", "-S", "-L"]
+    assert cmd_called[:4] == ["curl", "--http2", "-s", "-S"]
+    assert "-L" not in cmd_called
     assert "-H" in cmd_called
     assert "User-agent: test-agent" in cmd_called
     assert cmd_called[-1] == "https://www.olx.pl/test"
