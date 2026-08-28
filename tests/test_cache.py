@@ -35,7 +35,7 @@ def _http_error(code: int = 403, retry_after: str | None = None) -> urllib.error
     if retry_after is not None:
         hdrs["Retry-After"] = retry_after
     return urllib.error.HTTPError(
-        url="https://example.com/x",
+        url="https://www.olx.pl/x",
         code=code,
         msg="HTTP " + str(code),
         hdrs=hdrs,
@@ -59,33 +59,33 @@ def test_configure_with_no_domain_is_a_noop():
 
 def test_fetch_writes_and_reads_from_cache():
     with patch.object(cache, "_open", return_value=(b'{"ok": true}', "")) as mock_open:
-        text = cache.fetch("https://example.com/x", json_mode=True)
+        text = cache.fetch("https://www.olx.pl/x", json_mode=True)
         assert text == '{"ok": true}'
         assert mock_open.call_count == 1
 
-        text2 = cache.fetch("https://example.com/x", json_mode=True)
+        text2 = cache.fetch("https://www.olx.pl/x", json_mode=True)
         assert text2 == text
         assert mock_open.call_count == 1  # second call served from cache
 
 
 def test_fetch_bypasses_stale_cache():
-    path = cache._cache_path("https://example.com/stale")
+    path = cache._cache_path("https://www.olx.pl/stale")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("old")
     old_time = time.time() - cache.CACHE_TTL - 1
     os.utime(path, (old_time, old_time))
 
     with patch.object(cache, "_open", return_value=(b"fresh", "")):
-        text = cache.fetch("https://example.com/stale", json_mode=True)
+        text = cache.fetch("https://www.olx.pl/stale", json_mode=True)
     assert text == "fresh"
 
 
 def test_fetch_ignores_cache_when_use_cache_false():
     with patch.object(cache, "_open", return_value=(b"first", "")):
-        cache.fetch("https://example.com/y", json_mode=True)
+        cache.fetch("https://www.olx.pl/y", json_mode=True)
 
     with patch.object(cache, "_open", return_value=(b"second", "")):
-        text = cache.fetch("https://example.com/y", json_mode=True, use_cache=False)
+        text = cache.fetch("https://www.olx.pl/y", json_mode=True, use_cache=False)
     assert text == "second"
 
 
@@ -96,9 +96,73 @@ def test_fetch_rejects_non_http_scheme():
         mock_open.assert_not_called()
 
 
+def test_fetch_rejects_url_without_host():
+    with pytest.raises(SystemExit, match="refusing URL without host"):
+        cache.fetch("https://", json_mode=False)
+
+
+def test_fetch_rejects_ipv4_loopback():
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://127.0.0.1:8080/admin", json_mode=False)
+
+
+def test_fetch_rejects_ipv4_private_ranges():
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://10.0.0.1/secrets", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://192.168.1.1/router", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://172.16.0.1/internal", json_mode=False)
+
+
+def test_fetch_rejects_link_local_metadata():
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://169.254.169.254/latest/meta-data/", json_mode=False)
+
+
+def test_fetch_rejects_ipv6_loopback():
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://[::1]/admin", json_mode=False)
+
+
+def test_fetch_rejects_localhost_and_internal_domains():
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://localhost/admin", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://service.local/api", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        cache.fetch("http://db.internal/query", json_mode=False)
+
+
+def test_fetch_rejects_non_olx_domain():
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("http://example.com/test", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("https://google.com/", json_mode=False)
+
+
+def test_fetch_rejects_lookalike_and_subdomain_spoof():
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("http://evil-olx.com/listing", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("http://notolx.pl/listing", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("http://olx.attacker.com/listing", json_mode=False)
+
+
+def test_fetch_allows_valid_olx_domains():
+    with patch.object(cache, "_open", return_value=(b"html", "")):
+        assert cache.fetch("https://www.olx.pl/oferty/q-test/", json_mode=False) == "html"
+        assert cache.fetch("https://olx.pl/d/oferta/123.html", json_mode=False) == "html"
+        assert cache.fetch("https://m.olx.pl/d/oferta/123.html", json_mode=False) == "html"
+        assert cache.fetch("https://www.olx.ua/api/v1/offers/", json_mode=False) == "html"
+        assert cache.fetch("https://www.olx.ro/d/oferta/123.html", json_mode=False) == "html"
+        assert cache.fetch("https://www.olx.com.br/anuncio/123", json_mode=False) == "html"
+
+
 def test_index_put_and_get_round_trip():
-    cache.index_put([{"id": 42, "url": "https://example.com/42"}])
-    assert cache.index_get("42") == "https://example.com/42"
+    cache.index_put([{"id": 42, "url": "https://www.olx.pl/42"}])
+    assert cache.index_get("42") == "https://www.olx.pl/42"
     assert cache.index_get("999") is None
 
 
@@ -109,7 +173,7 @@ def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
     with patch.object(
         cache, "_open", side_effect=[_http_error(), (b'{"ok": true}', "")]
     ) as mock_open:
-        text = cache.fetch("https://example.com/retry-ok", json_mode=True)
+        text = cache.fetch("https://www.olx.pl/retry-ok", json_mode=True)
 
     assert text == '{"ok": true}'
     assert mock_open.call_count == 2
@@ -124,7 +188,7 @@ def test_fetch_gives_up_after_one_retry_on_http_error(monkeypatch):
 
     with patch.object(cache, "_open", side_effect=[_http_error(), _http_error()]) as mock_open:
         with pytest.raises(SystemExit, match="HTTP 403 for"):
-            cache.fetch("https://example.com/retry-fail", json_mode=True)
+            cache.fetch("https://www.olx.pl/retry-fail", json_mode=True)
 
     assert mock_open.call_count == 2  # exactly one retry, not a loop
     sleep.assert_called_once()
@@ -139,7 +203,7 @@ def test_fetch_retry_sleeps_for_retry_after_header_value(monkeypatch):
         "_open",
         side_effect=[_http_error(retry_after="7"), (b"ok", "")],
     ):
-        cache.fetch("https://example.com/retry-after", json_mode=True)
+        cache.fetch("https://www.olx.pl/retry-after", json_mode=True)
 
     sleep.assert_called_once_with(7)
 
@@ -153,7 +217,7 @@ def test_fetch_retry_falls_back_to_default_when_retry_after_unparseable(monkeypa
         "_open",
         side_effect=[_http_error(retry_after="not-a-number"), (b"ok", "")],
     ):
-        cache.fetch("https://example.com/retry-after-bad", json_mode=True)
+        cache.fetch("https://www.olx.pl/retry-after-bad", json_mode=True)
 
     sleep.assert_called_once_with(cache.RETRY_DELAY)
 
@@ -164,7 +228,7 @@ def test_fetch_does_not_retry_non_retryable_http_error(monkeypatch):
 
     with patch.object(cache, "_open", side_effect=[_http_error(code=404)]) as mock_open:
         with pytest.raises(SystemExit, match="HTTP 404 for"):
-            cache.fetch("https://example.com/not-found", json_mode=True)
+            cache.fetch("https://www.olx.pl/not-found", json_mode=True)
 
     assert mock_open.call_count == 1  # a 404 can never succeed on retry
     sleep.assert_not_called()
@@ -179,7 +243,7 @@ def test_fetch_retries_on_5xx_status(monkeypatch):
         "_open",
         side_effect=[_http_error(code=503), (b"ok", "")],
     ) as mock_open:
-        text = cache.fetch("https://example.com/retry-5xx", json_mode=True)
+        text = cache.fetch("https://www.olx.pl/retry-5xx", json_mode=True)
 
     assert text == "ok"
     assert mock_open.call_count == 2
@@ -205,7 +269,7 @@ def test_fetch_retry_sleeps_clamped_delay_for_huge_retry_after(monkeypatch):
         "_open",
         side_effect=[_http_error(retry_after="99999"), (b"ok", "")],
     ):
-        cache.fetch("https://example.com/retry-huge", json_mode=True)
+        cache.fetch("https://www.olx.pl/retry-huge", json_mode=True)
 
     sleep.assert_called_once_with(cache.MAX_RETRY_DELAY)
 
@@ -219,7 +283,7 @@ def test_fetch_retry_sleeps_clamped_delay_for_negative_retry_after(monkeypatch):
         "_open",
         side_effect=[_http_error(retry_after="-1"), (b"ok", "")],
     ):
-        cache.fetch("https://example.com/retry-negative", json_mode=True)
+        cache.fetch("https://www.olx.pl/retry-negative", json_mode=True)
 
     sleep.assert_called_once_with(0)
 
@@ -233,7 +297,7 @@ def test_fetch_closes_first_http_error_before_retrying(monkeypatch):
     monkeypatch.setattr(first_error, "close", close_spy)
 
     with patch.object(cache, "_open", side_effect=[first_error, (b"ok", "")]):
-        cache.fetch("https://example.com/retry-closes", json_mode=True)
+        cache.fetch("https://www.olx.pl/retry-closes", json_mode=True)
 
     close_spy.assert_called_once()
 
@@ -252,7 +316,7 @@ def test_open_success_curl_command_and_headers():
             args=cmd, returncode=0, stdout=b"raw body bytes", stderr=b""
         )
 
-    req = urllib.request.Request("https://example.com/test", headers={"User-Agent": "test-agent"})
+    req = urllib.request.Request("https://www.olx.pl/test", headers={"User-Agent": "test-agent"})
     with patch("subprocess.run", side_effect=fake_subprocess_run) as mock_run:
         raw, enc = cache._open(req)
 
@@ -262,7 +326,7 @@ def test_open_success_curl_command_and_headers():
     assert cmd_called[:5] == ["curl", "--http2", "-s", "-S", "-L"]
     assert "-H" in cmd_called
     assert "User-agent: test-agent" in cmd_called
-    assert cmd_called[-1] == "https://example.com/test"
+    assert cmd_called[-1] == "https://www.olx.pl/test"
 
 
 def test_open_http_error_constructor_and_headers():
@@ -275,7 +339,7 @@ def test_open_http_error_constructor_and_headers():
             args=cmd, returncode=0, stdout=b"forbidden payload", stderr=b""
         )
 
-    req = urllib.request.Request("https://example.com/forbidden")
+    req = urllib.request.Request("https://www.olx.pl/forbidden")
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             cache._open(req)
@@ -299,7 +363,7 @@ def test_open_http_error_decompresses_gzip_error_body():
             args=cmd, returncode=0, stdout=compressed_body, stderr=b""
         )
 
-    req = urllib.request.Request("https://example.com/not-found")
+    req = urllib.request.Request("https://www.olx.pl/not-found")
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             cache._open(req)
@@ -322,7 +386,7 @@ def test_open_http_error_decompresses_deflate_error_body():
             args=cmd, returncode=0, stdout=compressed_body, stderr=b""
         )
 
-    req = urllib.request.Request("https://example.com/deflate-not-found")
+    req = urllib.request.Request("https://www.olx.pl/deflate-not-found")
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             cache._open(req)
@@ -335,7 +399,7 @@ def test_open_http_error_decompresses_deflate_error_body():
 def test_fetch_decompression_error():
     with patch.object(cache, "_open", return_value=(b"corrupted-not-gzip", "gzip")):
         with pytest.raises(SystemExit, match="decompression error for"):
-            cache.fetch("https://example.com/corrupt", json_mode=True)
+            cache.fetch("https://www.olx.pl/corrupt", json_mode=True)
 
 
 def test_open_curl_failure_raises_url_error():
@@ -344,10 +408,10 @@ def test_open_curl_failure_raises_url_error():
             args=cmd,
             returncode=6,
             stdout=b"",
-            stderr=b"curl: (6) Could not resolve host: example.com",
+            stderr=b"curl: (6) Could not resolve host: www.olx.pl",
         )
 
-    req = urllib.request.Request("https://example.com/bad-dns")
+    req = urllib.request.Request("https://www.olx.pl/bad-dns")
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.URLError, match="Could not resolve host"):
             cache._open(req)
@@ -363,7 +427,7 @@ def test_open_curl_partial_transfer_failure_raises_url_error():
             args=cmd, returncode=18, stdout=b"partial data", stderr=b"curl: (18) transfer closed"
         )
 
-    req = urllib.request.Request("https://example.com/partial")
+    req = urllib.request.Request("https://www.olx.pl/partial")
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.URLError, match="transfer closed"):
             cache._open(req)

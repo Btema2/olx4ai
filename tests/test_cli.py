@@ -114,3 +114,51 @@ def test_domain_env_var_survives_when_flag_omitted(monkeypatch):
         assert "olx.ua" in captured["url"]
     finally:
         cache.configure("olx.pl")
+
+
+def test_url_command_filters_by_min_and_max_price(monkeypatch, capsys, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    # Filter with min 1000 -> drops 900zł offer, keeps 1800zł offer
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--min", "1000"]
+    main()
+    out = capsys.readouterr().out
+    assert "Test Phone Model B" in out
+    assert "1800zł" in out
+    assert "Test Phone Model A" not in out
+
+    # Filter with max-price 1000 -> keeps 900zł offer, drops 1800zł offer
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--max-price", "1000"]
+    main()
+    out = capsys.readouterr().out
+    assert "Test Phone Model A" in out
+    assert "900zł" in out
+    assert "Test Phone Model B" not in out
+
+
+def test_url_command_filters_by_condition(monkeypatch, capsys, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    # Filter with --used -> keeps used offer, drops new offer
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--used"]
+    main()
+    out = capsys.readouterr().out
+    assert "Test Phone Model A" in out
+    assert "Test Phone Model B" not in out
+
+    # Filter with --condition new -> keeps new offer, drops used offer
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--condition", "new"]
+    main()
+    out = capsys.readouterr().out
+    assert "Test Phone Model B" in out
+    assert "Test Phone Model A" not in out
+
+
+def test_url_command_rejects_ssrf_url():
+    sys.argv = ["olx4ai", "url", "http://169.254.169.254/latest/meta-data/"]
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        main()
+
+
+def test_offer_command_rejects_ssrf_url():
+    sys.argv = ["olx4ai", "offer", "http://127.0.0.1:8080/admin"]
+    with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        main()

@@ -249,7 +249,7 @@ the other is 4xx-broken. Neither is shippable as-is.
 |---|---|
 | B1 (stock 403) | **FIXED** — PR #1 (curl --http2 subprocess implementation) |
 | B2 (py3.13 HTTPError) | **FIXED** — PR #1 (5-arg constructor + header parsing) |
-| B3 (url ignores --min) | **Confirmed** — 50 zł offers returned with --min 1800 (Queued) |
+| B3 (url ignores --min) | **FIXED** — in-memory post_filter handles min, max_price, and condition |
 | B4 (empty query) | **Confirmed** — returns full catalog, exit 0 (Queued) |
 | B5 (--fields whitespace) | **Confirmed** — price field dropped (Queued) |
 | B6 (negative --min) | **Confirmed** — 403 + B2 crash (Queued) |
@@ -260,7 +260,7 @@ the other is 4xx-broken. Neither is shippable as-is.
 | B11 (--max 0) | **Confirmed** — silent "no results" (Queued) |
 | B12 (non-atomic cache write) | **FIXED** — PR #1 (atomic .tmp + os.replace write) |
 | B13 (index unbounded) | **Confirmed** — code inspection (Queued) |
-| V1 (SSRF) | **Confirmed** — localhost + metadata accepted (Queued - Next Priority) |
+| V1 (SSRF) | **FIXED** — URL host allowlist and private/internal IP/domain blocking |
 | V2 (plaintext HTTP) | **Confirmed** — http:// accepted (Queued) |
 | V3 (--param injection) | **Confirmed** — by design, needs documentation (Queued) |
 

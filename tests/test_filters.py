@@ -95,3 +95,49 @@ def test_must_matches_whole_word_correctly():
     # "iPhone 17 Pro" should be kept (matches whole word "Pro")
     # "iPhone 13" should be excluded
     assert [r["title"] for r in out] == ["iPhone 17 Pro"]
+
+
+def test_min_drops_rows_below_threshold_and_unpriced():
+    rows = [
+        {"title": "Cheap Item", "price": 50, "cond": "used", "promoted": False},
+        {"title": "Unpriced Item", "price": None, "cond": "used", "promoted": False},
+        {"title": "Expensive Item", "price": 1800, "cond": "used", "promoted": False},
+    ]
+    args = SimpleNamespace(min=1000)
+    out = post_filter(rows, args)
+    assert [r["title"] for r in out] == ["Expensive Item"]
+
+
+def test_max_price_drops_rows_above_threshold_and_unpriced():
+    rows = [
+        {"title": "Cheap Item", "price": 50, "cond": "used", "promoted": False},
+        {"title": "Unpriced Item", "price": None, "cond": "used", "promoted": False},
+        {"title": "Expensive Item", "price": 1800, "cond": "used", "promoted": False},
+    ]
+    args = SimpleNamespace(max_price=1000)
+    out = post_filter(rows, args)
+    assert [r["title"] for r in out] == ["Cheap Item"]
+
+
+def test_price_range_keeps_only_rows_within_bounds():
+    rows = [
+        {"title": "Too Cheap", "price": 50, "cond": "used", "promoted": False},
+        {"title": "Just Right", "price": 1800, "cond": "used", "promoted": False},
+        {"title": "Too Expensive", "price": 3500, "cond": "used", "promoted": False},
+        {"title": "No Price", "price": None, "cond": "used", "promoted": False},
+    ]
+    args = SimpleNamespace(min=1000, max_price=2000)
+    out = post_filter(rows, args)
+    assert [r["title"] for r in out] == ["Just Right"]
+
+
+def test_condition_filter_keeps_only_matching_condition():
+    rows = [
+        {"title": "Used Phone", "price": 500, "cond": "used", "promoted": False},
+        {"title": "New Phone", "price": 1500, "cond": "new", "promoted": False},
+        {"title": "Damaged Phone", "price": 200, "cond": "damaged", "promoted": False},
+        {"title": "Unknown Phone", "price": 300, "cond": None, "promoted": False},
+    ]
+    args = SimpleNamespace(condition="new")
+    out = post_filter(rows, args)
+    assert [r["title"] for r in out] == ["New Phone"]
