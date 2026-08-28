@@ -6,4 +6,6 @@ graphify-out/
 .pytest_cache/
 .ruff_cache/
 .venv/
+build/
+dist/
 
