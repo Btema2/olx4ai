@@ -275,3 +275,16 @@ def test_url_command_sorts_by_price_asc_and_desc(monkeypatch, capsys, html_listi
     # In price-asc, Model A (900) should appear before Model B (1800)
     assert "Model A" in lines[0]
     assert "Model B" in lines[1]
+
+
+def test_search_rejects_negative_title_chars():
+    sys.argv = ["olx4ai", "search", "laptop", "--title-chars", "-5"]
+    with pytest.raises(SystemExit, match="title chars cannot be negative"):
+        main()
+
+
+def test_url_rejects_negative_title_chars():
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--title-chars", "-1"]
+    with pytest.raises(SystemExit, match="title chars cannot be negative"):
+        main()
+

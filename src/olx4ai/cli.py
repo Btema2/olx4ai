@@ -33,6 +33,8 @@ Use --domain to point at another OLX Europe site (untested outside olx.pl)."""
 
 
 def cmd_search(args: argparse.Namespace) -> None:
+    if getattr(args, "title_chars", None) is not None and args.title_chars < 0:
+        raise SystemExit("title chars cannot be negative")
     raw = api_client.api_search(args)
     rows = filters.post_filter([norm.normalize(adapters.adapt_api_offer(o)) for o in raw], args)
     fmt.emit(rows, args, f'search "{args.query}"')
@@ -52,6 +54,8 @@ def cmd_url(args: argparse.Namespace) -> None:
         raise SystemExit("min price cannot be negative")
     if getattr(args, "max_price", None) is not None and args.max_price < 0:
         raise SystemExit("max price cannot be negative")
+    if getattr(args, "title_chars", None) is not None and args.title_chars < 0:
+        raise SystemExit("title chars cannot be negative")
     raw = html_client.html_search(args.target, use_cache=not args.no_cache, max_results=args.max)
 
     rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
