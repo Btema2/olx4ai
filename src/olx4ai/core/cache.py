@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import email
 import gzip
 import hashlib
+import io
 import json
 import os
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -40,12 +44,78 @@ def _cache_path(key: str) -> str:
     return os.path.join(CACHE_DIR, hashlib.sha1(key.encode()).hexdigest() + ".cache")
 
 
-def _open(req: urllib.request.Request) -> tuple[bytes, str]:
-    """Issue one HTTP request and return (raw body, content-encoding)."""
-    with urllib.request.urlopen(req, timeout=25) as resp:
-        raw = resp.read()
-        enc = (resp.headers.get("Content-Encoding") or "").lower()
-    return raw, enc
+def _open(req: urllib.request.Request | str) -> tuple[bytes, str]:
+    """Issue one HTTP request via curl with HTTP/2 support and return (raw body, content-encoding)."""
+    url = req.full_url if isinstance(req, urllib.request.Request) else req
+    header_items = req.header_items() if isinstance(req, urllib.request.Request) else []
+
+    with tempfile.NamedTemporaryFile(delete=False) as hf:
+        header_path = hf.name
+    try:
+        cmd = ["curl", "--http2", "-s", "-S", "-L", "--max-time", "25", "-D", header_path]
+        for k, v in header_items:
+            cmd.extend(["-H", f"{k}: {v}"])
+        cmd.append(url)
+
+        res = subprocess.run(cmd, capture_output=True)
+
+        headers_raw = ""
+        if os.path.exists(header_path):
+            with open(header_path, "rb") as f:
+                headers_raw = f.read().decode("utf-8", "replace")
+
+        blocks = [b.strip() for b in headers_raw.replace("\r\n", "\n").split("\n\n") if b.strip()]
+        if not blocks:
+            err_msg = (
+                res.stderr.decode("utf-8", "replace").strip() or f"curl error {res.returncode}"
+            )
+            raise urllib.error.URLError(err_msg)
+
+        last_block = blocks[-1]
+        lines = last_block.split("\n")
+        status_line = lines[0]
+        status_parts = status_line.split()
+        if len(status_parts) < 2 or not status_parts[1].isdigit():
+            raise urllib.error.URLError(f"malformed HTTP status line: {status_line}")
+
+        status_code = int(status_parts[1])
+        hdrs = email.message_from_string("\n".join(lines[1:]))
+        raw = res.stdout
+        enc = (hdrs.get("Content-Encoding") or "").lower()
+
+        if status_code >= 400:
+            err_body = raw
+            if enc == "gzip":
+                try:
+                    err_body = gzip.decompress(raw)
+                except Exception:
+                    pass
+            elif enc == "deflate":
+                try:
+                    err_body = zlib.decompress(raw, -zlib.MAX_WBITS)
+                except Exception:
+                    pass
+            raise urllib.error.HTTPError(
+                url=url,
+                code=status_code,
+                msg=f"HTTP {status_code}",
+                hdrs=hdrs,
+                fp=io.BytesIO(err_body),
+            )
+
+        if res.returncode != 0:
+            err_msg = (
+                res.stderr.decode("utf-8", "replace").strip() or f"curl error {res.returncode}"
+            )
+            raise urllib.error.URLError(err_msg)
+
+        return raw, enc
+    finally:
+        if os.path.exists(header_path):
+            try:
+                os.remove(header_path)
+            except OSError:
+                pass
 
 
 def _is_retryable(status_code: int) -> bool:
