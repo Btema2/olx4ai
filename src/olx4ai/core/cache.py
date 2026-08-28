@@ -187,6 +187,15 @@ def _validate_url(url: str) -> None:
         raise SystemExit(f"refusing non-OLX host in URL: {url}")
 
 
+def _format_http_error(e: urllib.error.HTTPError, url: str) -> str:
+    if e.code == 404:
+        return f"HTTP 404 for {url}"
+    body = e.read()[:400].decode("utf-8", "replace").strip()
+    if body:
+        return f"HTTP {e.code} for {url}\n{body}"
+    return f"HTTP {e.code} for {url}"
+
+
 def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
     _validate_url(url)
 
@@ -213,22 +222,19 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         raw, enc = _open(req)
     except urllib.error.HTTPError as e:
         if not _is_retryable(e.code):
-            raise SystemExit(
-                f"HTTP {e.code} for {url}\n{e.read()[:400].decode('utf-8', 'replace')}"
-            )
+            raise SystemExit(_format_http_error(e, url))
         delay = _retry_delay(e)
         e.close()
         time.sleep(delay)
         try:
             raw, enc = _open(req)
         except urllib.error.HTTPError as e2:
-            raise SystemExit(
-                f"HTTP {e2.code} for {url}\n{e2.read()[:400].decode('utf-8', 'replace')}"
-            )
+            raise SystemExit(_format_http_error(e2, url))
         except Exception as e2:  # noqa: BLE001
             raise SystemExit(f"network error for {url}: {e2}")
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"network error for {url}: {e}")
+
 
     try:
         if enc == "gzip":

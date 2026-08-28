@@ -247,3 +247,33 @@ def test_url_command_rejects_zero_or_negative_max():
     sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--max", "-5"]
     with pytest.raises(SystemExit, match="max offers must be greater than 0"):
         main()
+
+
+def test_url_command_sorts_by_price_asc_and_desc(monkeypatch, capsys, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    # html_listing_html has Model A (900zł) and Model B (1800zł)
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--sort", "price-desc"]
+    main()
+    out = capsys.readouterr().out
+    lines = [
+        line
+        for line in out.strip().split("\n")
+        if line and not line.startswith("=") and not line.startswith("#")
+    ]
+    # In price-desc, Model B (1800) should appear before Model A (900)
+    assert "Model B" in lines[0]
+    assert "Model A" in lines[1]
+
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--sort", "price-asc"]
+    main()
+    out = capsys.readouterr().out
+    lines = [
+        line
+        for line in out.strip().split("\n")
+        if line and not line.startswith("=") and not line.startswith("#")
+    ]
+    # In price-asc, Model A (900) should appear before Model B (1800)
+    assert "Model A" in lines[0]
+    assert "Model B" in lines[1]
+
+

@@ -7,7 +7,11 @@ import json
 import os
 from typing import Any, Literal
 
-from mcp.server import MCPServer
+try:
+    from mcp.server import MCPServer
+except (ImportError, ModuleNotFoundError):
+    MCPServer = None
+
 
 from olx4ai.core import adapters, api_client, cache, filters
 from olx4ai.core import format as fmt
@@ -15,10 +19,29 @@ from olx4ai.core import html_client
 from olx4ai.core import normalize as norm
 from olx4ai.core.prerendered import extract_prerendered, find_offers
 
-mcp = MCPServer("olx4ai")
+
+class _DummyMCP:
+    def tool(self):
+        def decorator(fn):
+            return fn
+
+        return decorator
+
+    def run(self):
+        raise SystemExit(
+            "olx4ai-mcp requires the mcp extra: pip install 'olx4ai[mcp]' or "
+            "uv tool install 'olx4ai[mcp]'"
+        )
+
+
+if MCPServer is not None:
+    mcp = MCPServer("olx4ai")
+else:
+    mcp = _DummyMCP()
 
 SortOption = Literal["relevance", "newest", "price-asc", "price-desc"]
 Condition = Literal["new", "used", "damaged"]
+
 
 
 class _Args:
@@ -154,6 +177,7 @@ def search_url(
     min: int | None = None,
     max_price: int | None = None,
     condition: Condition | None = None,
+    sort: SortOption = "relevance",
     exclude: str | None = None,
     must: str | None = None,
     dedupe: bool = False,
@@ -167,12 +191,13 @@ def search_url(
         raise SystemExit("min price cannot be negative")
     if max_price is not None and max_price < 0:
         raise SystemExit("max price cannot be negative")
-    raw = html_client.html_search(url, use_cache=True)
+    raw = html_client.html_search(url, use_cache=True, max_results=max)
 
     args = _Args(
         min=min,
         max_price=max_price,
         condition=condition,
+        sort=sort,
         exclude=exclude,
         must=must,
         dedupe=dedupe,
@@ -183,6 +208,7 @@ def search_url(
     ]
     cache.index_put(rows)
     return rows
+
 
 
 @mcp.tool()
@@ -231,7 +257,13 @@ def clear_cache() -> dict[str, Any]:
 
 
 def main() -> None:
+    if MCPServer is None or isinstance(mcp, _DummyMCP):
+        raise SystemExit(
+            "olx4ai-mcp requires the mcp extra: pip install 'olx4ai[mcp]' or "
+            "uv tool install 'olx4ai[mcp]'"
+        )
     mcp.run()
+
 
 
 if __name__ == "__main__":

@@ -282,11 +282,27 @@ def test_fetch_does_not_retry_non_retryable_http_error(monkeypatch):
     monkeypatch.setattr(cache.time, "sleep", sleep)
 
     with patch.object(cache, "_open", side_effect=[_http_error(code=404)]) as mock_open:
-        with pytest.raises(SystemExit, match="HTTP 404 for"):
+        with pytest.raises(SystemExit) as exc_info:
             cache.fetch("https://www.olx.pl/not-found", json_mode=True)
+        assert str(exc_info.value) == "HTTP 404 for https://www.olx.pl/not-found"
 
     assert mock_open.call_count == 1  # a 404 can never succeed on retry
     sleep.assert_not_called()
+
+
+def test_fetch_non_404_error_includes_body_preview(monkeypatch):
+    err = urllib.error.HTTPError(
+        url="https://www.olx.pl/bad-request",
+        code=400,
+        msg="HTTP 400",
+        hdrs={},
+        fp=io.BytesIO(b"custom bad request body"),
+    )
+    with patch.object(cache, "_open", side_effect=[err]):
+        with pytest.raises(SystemExit) as exc_info:
+            cache.fetch("https://www.olx.pl/bad-request", json_mode=True)
+        assert str(exc_info.value) == "HTTP 400 for https://www.olx.pl/bad-request\ncustom bad request body"
+
 
 
 def test_fetch_retries_on_5xx_status(monkeypatch):

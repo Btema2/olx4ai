@@ -45,4 +45,24 @@ def post_filter(rows: list[dict], args) -> list[dict]:
             seen.add(k)
             ded.append(r)
         out = ded
+
+    sort_opt = getattr(args, "sort", None)
+    if sort_opt == "price-asc":
+        out = sorted(
+            out,
+            key=lambda r: (
+                r.get("price") is None,
+                r.get("price") if r.get("price") is not None else 0,
+            ),
+        )
+    elif sort_opt == "price-desc":
+        out = sorted(
+            out,
+            key=lambda r: (
+                r.get("price") is None,
+                -(r.get("price") if r.get("price") is not None else 0),
+            ),
+        )
+
     return out
+

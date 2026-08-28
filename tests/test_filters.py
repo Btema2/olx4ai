@@ -155,3 +155,38 @@ def test_post_filter_rejects_negative_max_price():
 
     with pytest.raises(SystemExit, match="max price cannot be negative"):
         post_filter([], SimpleNamespace(max_price=-10))
+
+
+def test_post_filter_sort_price_asc_orders_numeric_prices_and_puts_none_at_end():
+    rows = [
+        {"title": "B", "price": 2199},
+        {"title": "A", "price": 750},
+        {"title": "C", "price": None},
+        {"title": "D", "price": 1900},
+    ]
+    out = post_filter(rows, SimpleNamespace(sort="price-asc"))
+    assert [r["title"] for r in out] == ["A", "D", "B", "C"]
+    assert [r["price"] for r in out] == [750, 1900, 2199, None]
+
+
+def test_post_filter_sort_price_desc_orders_numeric_prices_and_puts_none_at_end():
+    rows = [
+        {"title": "A", "price": 750},
+        {"title": "B", "price": 2199},
+        {"title": "C", "price": None},
+        {"title": "D", "price": 1900},
+    ]
+    out = post_filter(rows, SimpleNamespace(sort="price-desc"))
+    assert [r["title"] for r in out] == ["B", "D", "A", "C"]
+    assert [r["price"] for r in out] == [2199, 1900, 750, None]
+
+
+def test_post_filter_sort_relevance_or_unrecognized_preserves_order():
+    rows = [
+        {"title": "B", "price": 2199},
+        {"title": "A", "price": 750},
+        {"title": "D", "price": 1900},
+    ]
+    out = post_filter(rows, SimpleNamespace(sort="relevance"))
+    assert [r["title"] for r in out] == ["B", "A", "D"]
+
