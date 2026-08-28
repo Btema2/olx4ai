@@ -85,3 +85,46 @@ async def test_clear_cache_tool_reports_removed_count(tmp_path):
     async with Client(mcp) as client:
         result = await client.call_tool("clear_cache", {})
     assert result.structured_content["removed"] == 1
+
+
+async def test_search_url_tool_applies_min_and_max_price_filters(monkeypatch, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    async with Client(mcp) as client:
+        result_min = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "min": 1000}
+        )
+        offers_min = result_min.structured_content["result"]
+        assert len(offers_min) == 1
+        assert offers_min[0]["price"] == 1800
+
+        result_max = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "max_price": 1000}
+        )
+        offers_max = result_max.structured_content["result"]
+        assert len(offers_max) == 1
+        assert offers_max[0]["price"] == 900
+
+
+async def test_search_url_tool_applies_condition_filter(monkeypatch, html_listing_html):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
+    async with Client(mcp) as client:
+        result_new = await client.call_tool(
+            "search_url", {"url": "https://www.olx.pl/oferty/q-test/", "condition": "new"}
+        )
+        offers_new = result_new.structured_content["result"]
+        assert len(offers_new) == 1
+        assert offers_new[0]["title"] == "Test Phone Model B 256GB"
+
+
+async def test_search_url_tool_rejects_ssrf_url():
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "search_url", {"url": "http://169.254.169.254/latest/meta-data/"}
+        )
+    assert result.is_error is True
+
+
+async def test_offer_tool_rejects_ssrf_url():
+    async with Client(mcp) as client:
+        result = await client.call_tool("offer", {"target": "http://127.0.0.1:8080/admin"})
+    assert result.is_error is True

@@ -148,11 +148,32 @@ def stats(
 
 @mcp.tool()
 @_mcp_safe
-def search_url(url: str, max: int = 40) -> list[dict]:
+def search_url(
+    url: str,
+    max: int = 40,
+    min: int | None = None,
+    max_price: int | None = None,
+    condition: Condition | None = None,
+    exclude: str | None = None,
+    must: str | None = None,
+    dedupe: bool = False,
+    no_promoted: bool = False,
+) -> list[dict]:
     """Scrape any OLX listing URL (with OLX's own filters already applied)
     via __PRERENDERED_STATE__."""
     raw = html_client.html_search(url, use_cache=True)
-    rows = [norm.normalize(adapters.adapt_html_offer(o)) for o in raw][:max]
+    args = _Args(
+        min=min,
+        max_price=max_price,
+        condition=condition,
+        exclude=exclude,
+        must=must,
+        dedupe=dedupe,
+        no_promoted=no_promoted,
+    )
+    rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
+        :max
+    ]
     cache.index_put(rows)
     return rows
 

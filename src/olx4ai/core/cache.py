@@ -6,6 +6,7 @@ import email
 import gzip
 import hashlib
 import io
+import ipaddress
 import json
 import os
 import subprocess
@@ -137,9 +138,55 @@ def _retry_delay(error: urllib.error.HTTPError) -> int:
     return min(max(delay, 0), MAX_RETRY_DELAY)
 
 
-def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
-    if urllib.parse.urlparse(url).scheme not in ("http", "https"):
+def _validate_url(url: str) -> None:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
         raise SystemExit(f"refusing non-http(s) URL: {url}")
+    hostname = parsed.hostname
+    if not hostname:
+        raise SystemExit(f"refusing URL without host: {url}")
+    hostname = hostname.lower()
+
+    # Block IP addresses (including loopback, private, link-local metadata, etc.)
+    clean_host = hostname.strip("[]")
+    try:
+        ip = ipaddress.ip_address(clean_host)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise SystemExit(f"refusing private/internal host in URL: {url}")
+        raise SystemExit(f"refusing non-OLX host in URL: {url}")
+    except ValueError:
+        pass
+
+    # Block localhost and local/internal domains
+    if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(
+        (".localhost", ".local", ".internal")
+    ):
+        raise SystemExit(f"refusing private/internal host in URL: {url}")
+
+    # Check allowlist for OLX domains
+    parts = hostname.split(".")
+    is_olx = False
+    if len(parts) >= 2:
+        if parts[-2] == "olx":
+            is_olx = True
+        elif len(parts) >= 3 and parts[-3] == "olx" and parts[-2] in ("com", "co", "org", "net"):
+            is_olx = True
+        elif DOMAIN and (hostname == DOMAIN or hostname.endswith("." + DOMAIN)):
+            is_olx = True
+
+    if not is_olx:
+        raise SystemExit(f"refusing non-OLX host in URL: {url}")
+
+
+def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
+    _validate_url(url)
 
     path = _cache_path(url)
     if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:

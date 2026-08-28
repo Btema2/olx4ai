@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 *.egg-info/
 .superpowers/
+graphify-out/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
