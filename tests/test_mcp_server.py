@@ -137,7 +137,6 @@ async def test_search_and_search_url_parameter_descriptions():
             assert "title" in dedupe_desc and "price" in dedupe_desc
 
 
-
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")

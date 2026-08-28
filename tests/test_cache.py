@@ -75,7 +75,6 @@ def test_fetch_rejects_subdomain_and_tld_spoofs():
         cache.fetch("https://evil.olx.xyz/bar", json_mode=False)
 
 
-
 def test_fetch_writes_and_reads_from_cache():
     with patch.object(cache, "_open", return_value=(b'{"ok": true}', "")) as mock_open:
         text = cache.fetch("https://www.olx.pl/x", json_mode=True)

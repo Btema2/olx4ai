@@ -228,7 +228,6 @@ def _validate_url(url: str) -> None:
         raise SystemExit(f"refusing non-OLX host in URL: {url}")
 
 
-
 def _format_http_error(e: urllib.error.HTTPError, url: str) -> str:
     if e.code == 404:
         return f"HTTP 404 for {url}"

@@ -123,7 +123,6 @@ def test_agent_help_documents_filter_semantics_and_dedupe(capsys):
     assert "title" in out and "price" in out
 
 
-
 def test_clear_cache_removes_cached_files(tmp_path, capsys):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")
@@ -299,4 +298,3 @@ def test_url_rejects_negative_title_chars():
     sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--title-chars", "-1"]
     with pytest.raises(SystemExit, match="title chars cannot be negative"):
         main()
-

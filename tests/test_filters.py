@@ -204,4 +204,3 @@ def test_filters_docstrings_document_semantics():
         assert "\\b" in doc or r"\b" in doc or "whole-word" in doc
         assert "title" in doc
         assert "price" in doc
-
