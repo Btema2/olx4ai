@@ -115,6 +115,28 @@ async def test_offer_tool_desc_chars_default_matches_cli():
     assert schema["properties"]["desc_chars"]["default"] == 4000
 
 
+async def test_search_and_search_url_parameter_descriptions():
+    async with Client(mcp) as client:
+        result = await client.list_tools()
+    search_schema = next(t for t in result.tools if t.name == "search").input_schema
+    search_url_schema = next(t for t in result.tools if t.name == "search_url").input_schema
+
+    for schema in (search_schema, search_url_schema):
+        assert "exclude" in schema["properties"]
+        assert "must" in schema["properties"]
+        assert "dedupe" in schema["properties"]
+        # If descriptions are populated:
+        exclude_desc = schema["properties"]["exclude"].get("description", "")
+        must_desc = schema["properties"]["must"].get("description", "")
+        dedupe_desc = schema["properties"]["dedupe"].get("description", "")
+        if exclude_desc:
+            assert "ANY" in exclude_desc or "whole-word" in exclude_desc
+        if must_desc:
+            assert "ALL" in must_desc or "whole-word" in must_desc
+        if dedupe_desc:
+            assert "title" in dedupe_desc and "price" in dedupe_desc
+
+
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")

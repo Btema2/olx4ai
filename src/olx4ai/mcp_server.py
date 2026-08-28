@@ -121,7 +121,23 @@ def search(
     dedupe: bool = False,
     no_promoted: bool = False,
 ) -> list[dict]:
-    """Search OLX offers via the JSON API. Returns pruned offer dicts, no raw HTML."""
+    """Search OLX offers via the JSON API. Returns pruned offer dicts, no raw HTML.
+
+    Args:
+        query: Search query string.
+        max: Maximum number of offers to return (default 40).
+        min: Minimum price in PLN.
+        max_price: Maximum price in PLN.
+        condition: Filter by condition ('new', 'used', 'damaged').
+        sort: Sort order ('relevance', 'newest', 'price-asc', 'price-desc').
+        city_id: OLX city ID.
+        region_id: OLX region ID.
+        category: OLX category ID.
+        exclude: Comma-separated words to drop. Drops offers where ANY word is present in title (case-insensitive whole-word matching via regex `\\bword\\b`).
+        must: Comma-separated words required. Keeps only offers where ALL words are present in title (AND condition, case-insensitive whole-word matching via regex `\\bword\\b`).
+        dedupe: If True, deduplicates offers based on (title.lower().strip(), price) only (collapsing identical title+price across cities/sellers).
+        no_promoted: Drop promoted offers.
+    """
     rows = _search_rows(
         query,
         max,
@@ -183,7 +199,20 @@ def search_url(
     no_promoted: bool = False,
 ) -> list[dict]:
     """Scrape any OLX listing URL (with OLX's own filters already applied)
-    via __PRERENDERED_STATE__."""
+    via __PRERENDERED_STATE__.
+
+    Args:
+        url: OLX listing URL to scrape.
+        max: Maximum number of offers to return (default 40).
+        min: Minimum price in PLN.
+        max_price: Maximum price in PLN.
+        condition: Filter by condition ('new', 'used', 'damaged').
+        sort: Sort order ('relevance', 'newest', 'price-asc', 'price-desc').
+        exclude: Comma-separated words to drop. Drops offers where ANY word is present in title (case-insensitive whole-word matching via regex `\\bword\\b`).
+        must: Comma-separated words required. Keeps only offers where ALL words are present in title (AND condition, case-insensitive whole-word matching via regex `\\bword\\b`).
+        dedupe: If True, deduplicates offers based on (title.lower().strip(), price) only (collapsing identical title+price across cities/sellers).
+        no_promoted: Drop promoted offers.
+    """
     if max <= 0:
         raise SystemExit("max offers must be greater than 0")
     if min is not None and min < 0:

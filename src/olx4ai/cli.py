@@ -26,6 +26,10 @@ CHEAT = """olx4ai — context-cheap OLX browser. One short line per offer, no HT
 
 Line format: N. [id] price flags condition city/district age title
 Flags: ~ negotiable | D delivery | B business seller | * promoted
+Filtering & Deduplication:
+  --exclude "w1,w2": drops offers where ANY word is in title (case-insensitive whole-word \\bword\\b)
+  --must "w1,w2": keeps offers only if ALL words are in title (AND condition, case-insensitive whole-word \\bword\\b)
+  --dedupe: deduplicates offers based on (title.lower().strip(), price) only (collapses identical title+price across cities/sellers)
 Tips: start with `stats`, then narrow with --min/--max-price. URLs are omitted by
 default (they are long) — use `offer <id>`, or --urls if you really need them.
 Responses are cached 10 min, so re-running a query costs nothing.
@@ -33,6 +37,8 @@ Use --domain to point at another OLX Europe site (untested outside olx.pl)."""
 
 
 def cmd_search(args: argparse.Namespace) -> None:
+    if getattr(args, "title_chars", None) is not None and args.title_chars < 0:
+        raise SystemExit("title chars cannot be negative")
     raw = api_client.api_search(args)
     rows = filters.post_filter([norm.normalize(adapters.adapt_api_offer(o)) for o in raw], args)
     fmt.emit(rows, args, f'search "{args.query}"')
@@ -52,6 +58,8 @@ def cmd_url(args: argparse.Namespace) -> None:
         raise SystemExit("min price cannot be negative")
     if getattr(args, "max_price", None) is not None and args.max_price < 0:
         raise SystemExit("max price cannot be negative")
+    if getattr(args, "title_chars", None) is not None and args.title_chars < 0:
+        raise SystemExit("title chars cannot be negative")
     raw = html_client.html_search(args.target, use_cache=not args.no_cache, max_results=args.max)
 
     rows = filters.post_filter([norm.normalize(adapters.adapt_html_offer(o)) for o in raw], args)[
@@ -160,9 +168,19 @@ def build_parser() -> argparse.ArgumentParser:
             "(unvalidated escape hatch passed directly to OLX API query string)",
         )
 
-        sp.add_argument("--exclude", help="comma-separated words to drop from titles")
-        sp.add_argument("--must", help="comma-separated words the title must contain")
-        sp.add_argument("--dedupe", action="store_true")
+        sp.add_argument(
+            "--exclude",
+            help="comma-separated words to drop from titles (drops if ANY word matches whole-word case-insensitively)",
+        )
+        sp.add_argument(
+            "--must",
+            help="comma-separated words the title must contain (keeps only if ALL words match whole-word case-insensitively)",
+        )
+        sp.add_argument(
+            "--dedupe",
+            action="store_true",
+            help="deduplicate offers based on (title, price) only across cities and sellers",
+        )
         sp.add_argument("--no-promoted", action="store_true")
         sp.add_argument("--json", action="store_true")
         sp.add_argument("--fields", help="json mode: comma-separated field whitelist")

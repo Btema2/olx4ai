@@ -57,6 +57,24 @@ def test_configure_with_no_domain_is_a_noop():
     assert (cache.DOMAIN, cache.BASE, cache.API) == before
 
 
+def test_configure_rejects_non_olx_domain():
+    with pytest.raises(SystemExit, match="refusing non-OLX domain"):
+        cache.configure("evil.com")
+    with pytest.raises(SystemExit, match="refusing private/internal host in domain"):
+        cache.configure("169.254.169.254")
+    with pytest.raises(SystemExit, match="refusing private/internal host in domain"):
+        cache.configure("localhost")
+
+
+def test_fetch_rejects_subdomain_and_tld_spoofs():
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("https://attacker.olx.pl/payload", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("https://foo.olx.attacker.com/bar", json_mode=False)
+    with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
+        cache.fetch("https://evil.olx.xyz/bar", json_mode=False)
+
+
 def test_fetch_writes_and_reads_from_cache():
     with patch.object(cache, "_open", return_value=(b'{"ok": true}', "")) as mock_open:
         text = cache.fetch("https://www.olx.pl/x", json_mode=True)
@@ -396,7 +414,8 @@ def test_open_success_curl_command_and_headers():
     assert raw == b"raw body bytes"
     assert enc == "gzip"
     cmd_called = mock_run.call_args[0][0]
-    assert cmd_called[:5] == ["curl", "--http2", "-s", "-S", "-L"]
+    assert cmd_called[:4] == ["curl", "--http2", "-s", "-S"]
+    assert "-L" not in cmd_called
     assert "-H" in cmd_called
     assert "User-agent: test-agent" in cmd_called
     assert cmd_called[-1] == "https://www.olx.pl/test"

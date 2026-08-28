@@ -189,3 +189,18 @@ def test_post_filter_sort_relevance_or_unrecognized_preserves_order():
     ]
     out = post_filter(rows, SimpleNamespace(sort="relevance"))
     assert [r["title"] for r in out] == ["B", "A", "D"]
+
+
+def test_filters_docstrings_document_semantics():
+    import olx4ai.core.filters as filters_mod
+
+    mod_doc = filters_mod.__doc__ or ""
+    fn_doc = filters_mod.post_filter.__doc__ or ""
+
+    for doc in (mod_doc, fn_doc):
+        assert "exclude" in doc
+        assert "must" in doc
+        assert "dedupe" in doc
+        assert "\\b" in doc or r"\b" in doc or "whole-word" in doc
+        assert "title" in doc
+        assert "price" in doc

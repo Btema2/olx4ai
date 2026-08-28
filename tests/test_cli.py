@@ -112,6 +112,17 @@ def test_agent_help_documents_url_filters_and_city_slug_pattern(capsys):
     assert "/oferty/w-*" in out
 
 
+def test_agent_help_documents_filter_semantics_and_dedupe(capsys):
+    sys.argv = ["olx4ai", "agent-help"]
+    main()
+    out = capsys.readouterr().out
+    assert "--exclude" in out
+    assert "--must" in out
+    assert "--dedupe" in out
+    assert "whole-word" in out
+    assert "title" in out and "price" in out
+
+
 def test_clear_cache_removes_cached_files(tmp_path, capsys):
     (tmp_path / "abc.cache").write_text("x")
     (tmp_path / "index.json").write_text("{}")
@@ -275,3 +286,15 @@ def test_url_command_sorts_by_price_asc_and_desc(monkeypatch, capsys, html_listi
     # In price-asc, Model A (900) should appear before Model B (1800)
     assert "Model A" in lines[0]
     assert "Model B" in lines[1]
+
+
+def test_search_rejects_negative_title_chars():
+    sys.argv = ["olx4ai", "search", "laptop", "--title-chars", "-5"]
+    with pytest.raises(SystemExit, match="title chars cannot be negative"):
+        main()
+
+
+def test_url_rejects_negative_title_chars():
+    sys.argv = ["olx4ai", "url", "https://www.olx.pl/oferty/q-test/", "--title-chars", "-1"]
+    with pytest.raises(SystemExit, match="title chars cannot be negative"):
+        main()
