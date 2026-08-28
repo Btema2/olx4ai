@@ -170,6 +170,47 @@ def test_index_put_and_get_round_trip():
     assert cache.index_get("999") is None
 
 
+def test_index_put_prunes_oldest_entries_when_exceeding_max(monkeypatch):
+    monkeypatch.setattr(cache, "MAX_INDEX_ENTRIES", 3)
+    cache.index_put(
+        [
+            {"id": 1, "url": "https://www.olx.pl/1"},
+            {"id": 2, "url": "https://www.olx.pl/2"},
+            {"id": 3, "url": "https://www.olx.pl/3"},
+        ]
+    )
+    assert cache.index_get("1") == "https://www.olx.pl/1"
+    assert cache.index_get("2") == "https://www.olx.pl/2"
+    assert cache.index_get("3") == "https://www.olx.pl/3"
+
+    # Add 2 more offers -> total would be 5, pruned to 3 (oldest 1 and 2 dropped)
+    cache.index_put(
+        [
+            {"id": 4, "url": "https://www.olx.pl/4"},
+            {"id": 5, "url": "https://www.olx.pl/5"},
+        ]
+    )
+    assert cache.index_get("1") is None
+    assert cache.index_get("2") is None
+    assert cache.index_get("3") == "https://www.olx.pl/3"
+    assert cache.index_get("4") == "https://www.olx.pl/4"
+    assert cache.index_get("5") == "https://www.olx.pl/5"
+
+    # Updating 3 touches it (moves to newest), then adding 6 and 7 drops 4 and 5, keeping 3
+    cache.index_put([{"id": 3, "url": "https://www.olx.pl/3-updated"}])
+    cache.index_put(
+        [
+            {"id": 6, "url": "https://www.olx.pl/6"},
+            {"id": 7, "url": "https://www.olx.pl/7"},
+        ]
+    )
+    assert cache.index_get("4") is None
+    assert cache.index_get("5") is None
+    assert cache.index_get("3") == "https://www.olx.pl/3-updated"
+    assert cache.index_get("6") == "https://www.olx.pl/6"
+    assert cache.index_get("7") == "https://www.olx.pl/7"
+
+
 def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
     sleep = MagicMock()
     monkeypatch.setattr(cache.time, "sleep", sleep)

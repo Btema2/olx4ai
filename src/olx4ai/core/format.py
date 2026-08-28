@@ -19,8 +19,9 @@ def fmt_line(r: dict, n: int, title_chars: int, show_url: bool) -> str:
     )
     where = "/".join(x for x in (r["city"], r["district"]) if x) or "?"
     title = r["title"]
-    if len(title) > title_chars:
+    if title_chars and title_chars > 0 and len(title) > title_chars:
         title = title[: title_chars - 1] + "…"
+
     line = (
         f"{n:>3}. [{r['id']}] {price:<9}{flags:<4} "
         f"{(r['cond'] or '?'):<8}{where:<26} {r['age']:>4}  {title}"

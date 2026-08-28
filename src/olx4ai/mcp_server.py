@@ -161,7 +161,10 @@ def search_url(
 ) -> list[dict]:
     """Scrape any OLX listing URL (with OLX's own filters already applied)
     via __PRERENDERED_STATE__."""
+    if max <= 0:
+        raise SystemExit("max offers must be greater than 0")
     raw = html_client.html_search(url, use_cache=True)
+
     args = _Args(
         min=min,
         max_price=max_price,
@@ -210,13 +213,16 @@ def offer(target: str, desc_chars: int = 4000) -> dict[str, Any]:
 
 @mcp.tool()
 def clear_cache() -> dict[str, Any]:
-    """Remove all cached HTTP responses (does not clear the id-to-url index)."""
+    """Remove all cached HTTP responses and the id-to-url index."""
     n = 0
     if os.path.isdir(cache.CACHE_DIR):
         for f in os.listdir(cache.CACHE_DIR):
             if f.endswith(".cache"):
                 os.remove(os.path.join(cache.CACHE_DIR, f))
                 n += 1
+        index_file = os.path.join(cache.CACHE_DIR, "index.json")
+        if os.path.exists(index_file):
+            os.remove(index_file)
     return {"removed": n}
 
 

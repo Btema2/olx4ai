@@ -141,3 +141,17 @@ def test_condition_filter_keeps_only_matching_condition():
     args = SimpleNamespace(condition="new")
     out = post_filter(rows, args)
     assert [r["title"] for r in out] == ["New Phone"]
+
+
+def test_post_filter_rejects_negative_min():
+    import pytest
+
+    with pytest.raises(SystemExit, match="min price cannot be negative"):
+        post_filter([], SimpleNamespace(min=-10))
+
+
+def test_post_filter_rejects_negative_max_price():
+    import pytest
+
+    with pytest.raises(SystemExit, match="max price cannot be negative"):
+        post_filter([], SimpleNamespace(max_price=-10))

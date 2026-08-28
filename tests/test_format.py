@@ -52,6 +52,20 @@ def test_fmt_line_truncates_long_titles():
     assert "x" * 20 not in line
 
 
+def test_fmt_line_zero_title_chars_does_not_truncate():
+    full_title = "Asus Zenbook UX434FAC"
+    line = fmt.fmt_line(offer_row(title=full_title), 1, 0, False)
+    assert full_title in line
+    assert "…" not in line
+
+
+def test_fmt_line_negative_title_chars_does_not_truncate():
+    full_title = "Asus Zenbook UX434FAC"
+    line = fmt.fmt_line(offer_row(title=full_title), 1, -1, False)
+    assert full_title in line
+    assert "…" not in line
+
+
 def test_fmt_line_appends_url_when_requested():
     line = fmt.fmt_line(offer_row(), 1, 80, True)
     assert "https://example.com/1" in line

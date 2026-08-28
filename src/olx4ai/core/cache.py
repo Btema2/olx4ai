@@ -22,7 +22,9 @@ BASE = f"https://www.{DOMAIN}"
 API = f"{BASE}/api/v1/offers/"
 CACHE_DIR = os.path.expanduser(os.environ.get("OLX4AI_CACHE_DIR", "~/.cache/olx4ai"))
 CACHE_TTL = int(os.environ.get("OLX4AI_CACHE_TTL", "600"))
+MAX_INDEX_ENTRIES = int(os.environ.get("OLX4AI_MAX_INDEX_ENTRIES", "5000"))
 RETRY_DELAY = 2  # seconds; used when Retry-After is absent or unparseable
+
 MAX_RETRY_DELAY = 60  # seconds; clamp for Retry-After-derived delays
 RETRYABLE_HTTP_CODES = {403, 408, 429}  # plus any 5xx; see _is_retryable()
 UA = (
@@ -254,7 +256,13 @@ def index_put(rows: list[dict]) -> None:
         idx = {}
     for r in rows:
         if r.get("id") and r.get("url"):
-            idx[str(r["id"])] = r["url"]
+            key = str(r["id"])
+            idx.pop(key, None)
+            idx[key] = r["url"]
+    if len(idx) > MAX_INDEX_ENTRIES:
+        excess = len(idx) - MAX_INDEX_ENTRIES
+        for k in list(idx.keys())[:excess]:
+            del idx[k]
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(idx, fh)

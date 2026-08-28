@@ -6,11 +6,16 @@ import re
 
 
 def post_filter(rows: list[dict], args) -> list[dict]:
+    if getattr(args, "min", None) is not None and args.min < 0:
+        raise SystemExit("min price cannot be negative")
+    if getattr(args, "max_price", None) is not None and args.max_price < 0:
+        raise SystemExit("max price cannot be negative")
     out = rows
     if getattr(args, "min", None) is not None:
         out = [r for r in out if r.get("price") is not None and r["price"] >= args.min]
     if getattr(args, "max_price", None) is not None:
         out = [r for r in out if r.get("price") is not None and r["price"] <= args.max_price]
+
     if getattr(args, "condition", None):
         out = [r for r in out if r.get("cond") == args.condition]
     if getattr(args, "exclude", None):

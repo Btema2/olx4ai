@@ -99,3 +99,45 @@ def test_api_search_handles_non_dict_json_response(monkeypatch):
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: "[1, 2, 3]")
     with pytest.raises(SystemExit, match="malformed JSON response"):
         api_client.api_search(make_args())
+
+
+def test_api_search_rejects_negative_min():
+    with pytest.raises(SystemExit, match="min price cannot be negative"):
+        api_client.api_search(make_args(min=-10))
+
+
+def test_api_search_rejects_negative_max_price():
+    with pytest.raises(SystemExit, match="max price cannot be negative"):
+        api_client.api_search(make_args(max_price=-10))
+
+
+def test_api_search_ignores_param_without_equals_or_empty_key(monkeypatch, api_search_payload):
+    captured = {}
+
+    def fake_fetch(url, **kw):
+        captured["url"] = url
+        return json.dumps(api_search_payload)
+
+    monkeypatch.setattr(cache, "fetch", fake_fetch)
+    api_client.api_search(
+        make_args(
+            param=[
+                "bogus",
+                "=noval",
+                "   =noval2",
+                "valid_param=123",
+                "filter_enum_hdd_type[0]=ssd",
+            ]
+        )
+    )
+    assert "valid_param=123" in captured["url"]
+    assert "filter_enum_hdd_type%5B0%5D=ssd" in captured["url"]
+    assert "bogus" not in captured["url"]
+    assert "noval" not in captured["url"]
+
+
+def test_api_search_rejects_zero_or_negative_max():
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
+        api_client.api_search(make_args(max=0))
+    with pytest.raises(SystemExit, match="max offers must be greater than 0"):
+        api_client.api_search(make_args(max=-5))

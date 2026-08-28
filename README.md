@@ -74,9 +74,15 @@ you'll see missing fields rather than a crash — please file an issue.
 
 Responses are cached on disk at `~/.cache/olx4ai/` for 10 minutes (override
 via `OLX4AI_CACHE_DIR` / `OLX4AI_CACHE_TTL`), so re-running a query costs
-nothing. `clear-cache` removes cached HTTP responses only, not the
-id→URL index that lets `offer <id>` work after a `search` without ever
-printing URLs.
+nothing. The id→URL index is bounded to 5000 entries (configurable via
+`OLX4AI_MAX_INDEX_ENTRIES`). `clear-cache` removes both cached HTTP responses
+and the id→URL index.
+
+## Raw API Parameters (`--param`)
+
+The `--param` flag (e.g. `--param filter_enum_hdd_type[0]=ssd`) is an escape hatch
+for passing unvalidated raw query parameters directly to the OLX API.
+
 
 ## Development
 

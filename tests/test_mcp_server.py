@@ -117,9 +117,11 @@ async def test_offer_tool_desc_chars_default_matches_cli():
 
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
+    (tmp_path / "index.json").write_text("{}")
     async with Client(mcp) as client:
         result = await client.call_tool("clear_cache", {})
     assert result.structured_content["removed"] == 1
+    assert not (tmp_path / "index.json").exists()
 
 
 async def test_search_url_tool_applies_min_and_max_price_filters(monkeypatch, html_listing_html):

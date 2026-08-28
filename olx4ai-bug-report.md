@@ -252,17 +252,18 @@ the other is 4xx-broken. Neither is shippable as-is.
 | B3 (url ignores --min) | **FIXED** — in-memory post_filter handles min, max_price, and condition |
 | B4 (empty query) | **FIXED** — rejects empty/whitespace query with SystemExit |
 | B5 (--fields whitespace) | **FIXED** — whitespace stripped from field whitelist tokens |
-| B6 (negative --min) | **Confirmed** — 403 + B2 crash (Queued) |
-| B7 (--title-chars 0) | **Confirmed** — off-by-one truncation (Queued) |
+| B6 (negative --min) | **FIXED** — rejects negative --min / --max-price with SystemExit |
+| B7 (--title-chars 0) | **FIXED** — non-positive title-chars leaves title untruncated |
 | B8 (malformed JSON) | **FIXED** — clean SystemExit error message on malformed JSON |
-| B9 (clear-cache index) | **Confirmed** — index.json persists (Queued) |
-| B10 (--param nodash) | **Confirmed** — empty value sent (Queued) |
-| B11 (--max 0) | **Confirmed** — silent "no results" (Queued) |
+| B9 (clear-cache index) | **FIXED** — clear-cache removes both .cache files and index.json |
+| B10 (--param nodash) | **FIXED** — skips invalid/empty param key or param without '=' |
+| B11 (--max 0) | **FIXED** — validates --max > 0 with SystemExit |
 | B12 (non-atomic cache write) | **FIXED** — PR #1 (atomic .tmp + os.replace write) |
-| B13 (index unbounded) | **Confirmed** — code inspection (Queued) |
+| B13 (index unbounded) | **FIXED** — bounded index with MAX_INDEX_ENTRIES and FIFO/LRU pruning |
 | V1 (SSRF) | **FIXED** — URL host allowlist and private/internal IP/domain blocking |
 | V2 (plaintext HTTP) | **FIXED** — TLS enforced (refuses non-https URLs) |
-| V3 (--param injection) | **Confirmed** — by design, needs documentation (Queued) |
+| V3 (--param injection) | **FIXED** — documented security boundary (unvalidated escape hatch) |
+
 
 ---
 
