@@ -24,6 +24,15 @@ def test_search_prints_offer_lines(monkeypatch, capsys, api_search_payload):
     assert "Warszawa" in out
 
 
+def test_search_rejects_empty_query():
+    sys.argv = ["olx4ai", "search", ""]
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        main()
+    sys.argv = ["olx4ai", "search", "   "]
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        main()
+
+
 def test_stats_prints_price_distribution(monkeypatch, capsys, api_search_payload):
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: json.dumps(api_search_payload))
     sys.argv = ["olx4ai", "stats", "test laptop"]
@@ -31,6 +40,15 @@ def test_stats_prints_price_distribution(monkeypatch, capsys, api_search_payload
     out = capsys.readouterr().out
     assert "1 offers" in out
     assert "min 1500" in out
+
+
+def test_stats_rejects_empty_query():
+    sys.argv = ["olx4ai", "stats", ""]
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        main()
+    sys.argv = ["olx4ai", "stats", "   "]
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        main()
 
 
 def test_url_command_prints_html_sourced_offers(monkeypatch, capsys, html_listing_html):
@@ -53,6 +71,25 @@ def test_offer_command_json_mode_from_html_fallback(monkeypatch, capsys, html_of
     assert d["price"] == 250
     assert d["city"] == "Wrocław"
     assert d["cond"] == "used"
+    assert "Vacuum" in d["title"]
+
+
+def test_offer_command_numeric_id_falls_back_to_html_when_api_returns_malformed_json(
+    monkeypatch, capsys, html_offer_detail_html
+):
+    cache.index_put([{"id": 999, "url": "https://www.olx.pl/d/oferta/test-vacuum.html"}])
+
+    def fake_fetch(url, **kw):
+        if "api/v1/offers" in url:
+            return "<html>not json</html>"
+        return html_offer_detail_html
+
+    monkeypatch.setattr(cache, "fetch", fake_fetch)
+    sys.argv = ["olx4ai", "offer", "999", "--json"]
+    main()
+    out = capsys.readouterr().out
+    d = json.loads(out)
+    assert d["price"] == 250
     assert "Vacuum" in d["title"]
 
 
@@ -153,12 +190,18 @@ def test_url_command_filters_by_condition(monkeypatch, capsys, html_listing_html
 
 
 def test_url_command_rejects_ssrf_url():
-    sys.argv = ["olx4ai", "url", "http://169.254.169.254/latest/meta-data/"]
+    sys.argv = ["olx4ai", "url", "https://169.254.169.254/latest/meta-data/"]
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
         main()
 
 
 def test_offer_command_rejects_ssrf_url():
-    sys.argv = ["olx4ai", "offer", "http://127.0.0.1:8080/admin"]
+    sys.argv = ["olx4ai", "offer", "https://127.0.0.1:8080/admin"]
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
+        main()
+
+
+def test_url_command_rejects_plaintext_http():
+    sys.argv = ["olx4ai", "url", "http://www.olx.pl/oferty/q-test/"]
+    with pytest.raises(SystemExit, match="refusing non-https URL"):
         main()

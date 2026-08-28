@@ -35,12 +35,30 @@ async def test_search_tool_populates_cache_index(monkeypatch, api_search_payload
     assert cache.index_get(offer_id) == offers[0]["url"]
 
 
+async def test_search_tool_rejects_empty_query():
+    async with Client(mcp) as client:
+        result = await client.call_tool("search", {"query": ""})
+    assert result.is_error is True
+    async with Client(mcp) as client:
+        result = await client.call_tool("search", {"query": "   "})
+    assert result.is_error is True
+
+
 async def test_stats_tool_returns_structured_distribution(monkeypatch, api_search_payload):
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: json.dumps(api_search_payload))
     async with Client(mcp) as client:
         result = await client.call_tool("stats", {"query": "test laptop"})
     assert result.structured_content["min"] == 1500
     assert result.structured_content["count"] == 1
+
+
+async def test_stats_tool_rejects_empty_query():
+    async with Client(mcp) as client:
+        result = await client.call_tool("stats", {"query": ""})
+    assert result.is_error is True
+    async with Client(mcp) as client:
+        result = await client.call_tool("stats", {"query": "   "})
+    assert result.is_error is True
 
 
 async def test_search_url_tool_uses_html_adapter(monkeypatch, html_listing_html):
@@ -61,6 +79,23 @@ async def test_offer_tool_from_html_fallback(monkeypatch, html_offer_detail_html
         )
     assert result.structured_content["price"] == 250
     assert result.structured_content["city"] == "Wrocław"
+
+
+async def test_offer_tool_numeric_id_falls_back_to_html_when_api_returns_malformed_json(
+    monkeypatch, html_offer_detail_html
+):
+    cache.index_put([{"id": 999, "url": "https://www.olx.pl/d/oferta/test-vacuum.html"}])
+
+    def fake_fetch(url, **kw):
+        if "api/v1/offers" in url:
+            return "<html>not json</html>"
+        return html_offer_detail_html
+
+    monkeypatch.setattr(cache, "fetch", fake_fetch)
+    async with Client(mcp) as client:
+        result = await client.call_tool("offer", {"target": "999"})
+    assert result.structured_content["price"] == 250
+    assert "Vacuum" in result.structured_content["title"]
 
 
 async def test_offer_tool_translates_fetch_errors_to_tool_errors(monkeypatch):
@@ -119,12 +154,18 @@ async def test_search_url_tool_applies_condition_filter(monkeypatch, html_listin
 async def test_search_url_tool_rejects_ssrf_url():
     async with Client(mcp) as client:
         result = await client.call_tool(
-            "search_url", {"url": "http://169.254.169.254/latest/meta-data/"}
+            "search_url", {"url": "https://169.254.169.254/latest/meta-data/"}
         )
     assert result.is_error is True
 
 
 async def test_offer_tool_rejects_ssrf_url():
     async with Client(mcp) as client:
-        result = await client.call_tool("offer", {"target": "http://127.0.0.1:8080/admin"})
+        result = await client.call_tool("offer", {"target": "https://127.0.0.1:8080/admin"})
+    assert result.is_error is True
+
+
+async def test_search_url_tool_rejects_plaintext_http():
+    async with Client(mcp) as client:
+        result = await client.call_tool("search_url", {"url": "http://www.olx.pl/oferty/q-test/"})
     assert result.is_error is True

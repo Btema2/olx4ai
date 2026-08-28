@@ -187,8 +187,8 @@ def offer(target: str, desc_chars: int = 4000) -> dict[str, Any]:
     if target.isdigit():
         try:
             payload = json.loads(cache.fetch(f"{cache.API}{target}/", json_mode=True))
-            offer_dict = payload.get("data") or payload
-        except SystemExit:
+            offer_dict = payload.get("data") or payload if isinstance(payload, dict) else None
+        except (SystemExit, json.JSONDecodeError, ValueError):
             offer_dict = None
         if offer_dict is None:
             url = cache.index_get(target)

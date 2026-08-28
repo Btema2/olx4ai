@@ -1,6 +1,8 @@
 import argparse
 import json
 
+import pytest
+
 from olx4ai.core import api_client, cache
 
 
@@ -76,3 +78,24 @@ def test_api_search_includes_condition_and_price_range_params(monkeypatch, api_s
     assert "filter_float_price%3Afrom=800" in captured["url"]
     assert "filter_float_price%3Ato=2000" in captured["url"]
     assert "filter_enum_state%5B0%5D=used" in captured["url"]
+
+
+def test_api_search_rejects_empty_or_whitespace_query():
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        api_client.api_search(make_args(query=""))
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        api_client.api_search(make_args(query="   "))
+    with pytest.raises(SystemExit, match="search query cannot be empty"):
+        api_client.api_search(make_args(query=None))
+
+
+def test_api_search_handles_malformed_json_response(monkeypatch):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: "<html>not json</html>")
+    with pytest.raises(SystemExit, match="malformed JSON response"):
+        api_client.api_search(make_args())
+
+
+def test_api_search_handles_non_dict_json_response(monkeypatch):
+    monkeypatch.setattr(cache, "fetch", lambda url, **kw: "[1, 2, 3]")
+    with pytest.raises(SystemExit, match="malformed JSON response"):
+        api_client.api_search(make_args())

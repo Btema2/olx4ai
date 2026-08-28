@@ -49,19 +49,24 @@ def extract_prerendered(html: str) -> dict:
         raise SystemExit("no __PRERENDERED_STATE__ on this page (bot wall or layout change?)")
     rest = html[html.index("=", idx) + 1 :].lstrip()
 
-    if rest[0] in "\"'":
-        literal = _scan_js_string(rest)
-        if literal[0] == "'":  # normalise to a JSON-parsable double-quoted literal
-            literal = '"' + literal[1:-1].replace('"', '\\"').replace("\\'", "'") + '"'
-        inner = json.loads(literal)  # -> str
-    else:
-        inner = _scan_balanced(rest)
+    try:
+        if not rest:
+            raise ValueError("empty state after __PRERENDERED_STATE__ assignment")
+        if rest[0] in "\"'":
+            literal = _scan_js_string(rest)
+            if literal[0] == "'":  # normalise to a JSON-parsable double-quoted literal
+                literal = '"' + literal[1:-1].replace('"', '\\"').replace("\\'", "'") + '"'
+            inner = json.loads(literal)  # -> str
+        else:
+            inner = _scan_balanced(rest)
 
-    if isinstance(inner, str):
-        if inner.lstrip().startswith("%"):  # sometimes URI-encoded
-            inner = urllib.parse.unquote(inner)
-        return json.loads(inner)
-    return inner
+        if isinstance(inner, str):
+            if inner.lstrip().startswith("%"):  # sometimes URI-encoded
+                inner = urllib.parse.unquote(inner)
+            return json.loads(inner)
+        return inner
+    except (json.JSONDecodeError, ValueError, IndexError) as e:
+        raise SystemExit(f"malformed __PRERENDERED_STATE__ on page: {e}") from e
 
 
 def _looks_like_offer(d: dict) -> bool:

@@ -89,10 +89,14 @@ def test_fetch_ignores_cache_when_use_cache_false():
     assert text == "second"
 
 
-def test_fetch_rejects_non_http_scheme():
+def test_fetch_rejects_non_https_scheme():
     with patch.object(cache, "_open") as mock_open:
-        with pytest.raises(SystemExit, match="refusing non-http\\(s\\) URL"):
+        with pytest.raises(SystemExit, match="refusing non-https URL"):
             cache.fetch("file:///etc/passwd", json_mode=False)
+        with pytest.raises(SystemExit, match="refusing non-https URL"):
+            cache.fetch("http://www.olx.pl/oferty/", json_mode=False)
+        with pytest.raises(SystemExit, match="refusing non-https URL"):
+            cache.fetch("http://olx.pl/12345", json_mode=False)
         mock_open.assert_not_called()
 
 
@@ -103,51 +107,51 @@ def test_fetch_rejects_url_without_host():
 
 def test_fetch_rejects_ipv4_loopback():
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://127.0.0.1:8080/admin", json_mode=False)
+        cache.fetch("https://127.0.0.1:8080/admin", json_mode=False)
 
 
 def test_fetch_rejects_ipv4_private_ranges():
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://10.0.0.1/secrets", json_mode=False)
+        cache.fetch("https://10.0.0.1/secrets", json_mode=False)
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://192.168.1.1/router", json_mode=False)
+        cache.fetch("https://192.168.1.1/router", json_mode=False)
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://172.16.0.1/internal", json_mode=False)
+        cache.fetch("https://172.16.0.1/internal", json_mode=False)
 
 
 def test_fetch_rejects_link_local_metadata():
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://169.254.169.254/latest/meta-data/", json_mode=False)
+        cache.fetch("https://169.254.169.254/latest/meta-data/", json_mode=False)
 
 
 def test_fetch_rejects_ipv6_loopback():
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://[::1]/admin", json_mode=False)
+        cache.fetch("https://[::1]/admin", json_mode=False)
 
 
 def test_fetch_rejects_localhost_and_internal_domains():
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://localhost/admin", json_mode=False)
+        cache.fetch("https://localhost/admin", json_mode=False)
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://service.local/api", json_mode=False)
+        cache.fetch("https://service.local/api", json_mode=False)
     with pytest.raises(SystemExit, match="refusing private/internal host in URL"):
-        cache.fetch("http://db.internal/query", json_mode=False)
+        cache.fetch("https://db.internal/query", json_mode=False)
 
 
 def test_fetch_rejects_non_olx_domain():
     with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
-        cache.fetch("http://example.com/test", json_mode=False)
+        cache.fetch("https://example.com/test", json_mode=False)
     with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
         cache.fetch("https://google.com/", json_mode=False)
 
 
 def test_fetch_rejects_lookalike_and_subdomain_spoof():
     with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
-        cache.fetch("http://evil-olx.com/listing", json_mode=False)
+        cache.fetch("https://evil-olx.com/listing", json_mode=False)
     with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
-        cache.fetch("http://notolx.pl/listing", json_mode=False)
+        cache.fetch("https://notolx.pl/listing", json_mode=False)
     with pytest.raises(SystemExit, match="refusing non-OLX host in URL"):
-        cache.fetch("http://olx.attacker.com/listing", json_mode=False)
+        cache.fetch("https://olx.attacker.com/listing", json_mode=False)
 
 
 def test_fetch_allows_valid_olx_domains():
