@@ -67,7 +67,7 @@ def html_search(url: str, use_cache: bool, max_results: int | None = None) -> li
                 except Exception:
                     batch = []
                 if batch:
-                    cache._write_cache(page_url, raw_html)
+                    cache.write_cache(page_url, raw_html)
             if not batch:
                 cache.evict(page_url)
                 sys.stderr.write("WARNING: 0 offers parsed — possible bot-wall or layout variant\n")

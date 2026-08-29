@@ -108,12 +108,16 @@ def evict(url: str) -> None:
             pass
 
 
-def _write_cache(url: str, text: str) -> None:
+def write_cache(url: str, text: str) -> None:
+    """Write text to the cache file for url atomically."""
     path = _cache_path(url)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(text)
     os.replace(tmp, path)
+
+
+_write_cache = write_cache
 
 
 def _open(req: urllib.request.Request | str) -> tuple[bytes, str]:

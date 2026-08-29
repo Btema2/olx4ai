@@ -115,6 +115,9 @@ def test_html_search_retries_and_succeeds_on_degraded_empty_state(monkeypatch, h
     monkeypatch.setattr(cache, "evict", fake_evict)
     write_cache_calls = []
     monkeypatch.setattr(
+        cache, "write_cache", lambda u, t: write_cache_calls.append((u, t)), raising=False
+    )
+    monkeypatch.setattr(
         cache, "_write_cache", lambda u, t: write_cache_calls.append((u, t)), raising=False
     )
 
