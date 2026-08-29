@@ -250,9 +250,32 @@ def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
 
     assert text == '{"ok": true}'
     assert mock_open.call_count == 2
-    # the retry reuses the exact same Request (same URL/headers), not a new one
-    assert mock_open.call_args_list[0].args[0] is mock_open.call_args_list[1].args[0]
+    # the retry creates a new Request with varied headers, not the same one
+    assert mock_open.call_args_list[0].args[0] is not mock_open.call_args_list[1].args[0]
     sleep.assert_called_once_with(cache.RETRY_DELAY)
+
+
+def test_fetch_varies_headers_on_retry(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    with patch.object(
+        cache,
+        "_open",
+        side_effect=[_http_error(code=429), (b'{"ok": true}', "")],
+    ) as mock_open:
+        text = cache.fetch("https://www.olx.pl/retry-varies", json_mode=True)
+
+    assert text == '{"ok": true}'
+    assert mock_open.call_count == 2
+    req1 = mock_open.call_args_list[0].args[0]
+    req2 = mock_open.call_args_list[1].args[0]
+    assert req1 is not req2
+    hdrs1 = dict(req1.header_items())
+    hdrs2 = dict(req2.header_items())
+    assert hdrs1 != hdrs2
+    assert hdrs1.get("Accept-language") != hdrs2.get("Accept-language")
+
 
 
 def test_fetch_gives_up_after_one_retry_on_http_error(monkeypatch):

@@ -237,17 +237,9 @@ def _format_http_error(e: urllib.error.HTTPError, url: str) -> str:
     return f"HTTP {e.code} for {url}"
 
 
-def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
-    _validate_url(url)
-
-    path = _cache_path(url)
-    if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:
-        with open(path, "r", encoding="utf-8") as fh:
-            return fh.read()
-
-    req = urllib.request.Request(
-        url,
-        headers={
+def _build_request(url: str, *, json_mode: bool, retry: bool = False) -> urllib.request.Request:
+    if not retry:
+        headers = {
             "User-Agent": UA,
             "Accept": (
                 "application/json, text/plain, */*"
@@ -257,8 +249,31 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
             "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
             "Accept-Encoding": "gzip, deflate",
             "Referer": BASE + "/",
-        },
-    )
+        }
+    else:
+        headers = {
+            "User-Agent": UA,
+            "Accept": (
+                "application/json, text/plain, */*;q=0.8"
+                if json_mode
+                else "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            ),
+            "Accept-Language": "pl,en-US;q=0.7,en;q=0.3",
+            "Accept-Encoding": "gzip, deflate",
+            "Referer": BASE + "/",
+        }
+    return urllib.request.Request(url, headers=headers)
+
+
+def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
+    _validate_url(url)
+
+    path = _cache_path(url)
+    if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read()
+
+    req = _build_request(url, json_mode=json_mode, retry=False)
     try:
         raw, enc = _open(req)
     except urllib.error.HTTPError as e:
@@ -268,7 +283,8 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         e.close()
         time.sleep(delay)
         try:
-            raw, enc = _open(req)
+            req_retry = _build_request(url, json_mode=json_mode, retry=True)
+            raw, enc = _open(req_retry)
         except urllib.error.HTTPError as e2:
             raise SystemExit(_format_http_error(e2, url))
         except Exception as e2:  # noqa: BLE001
