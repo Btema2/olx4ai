@@ -98,6 +98,24 @@ def _cache_path(key: str) -> str:
     return os.path.join(CACHE_DIR, hashlib.sha1(key.encode()).hexdigest() + ".cache")
 
 
+def evict(url: str) -> None:
+    """Remove a cached HTTP response file for the given URL if present."""
+    path = _cache_path(url)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _write_cache(url: str, text: str) -> None:
+    path = _cache_path(url)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
+
+
 def _open(req: urllib.request.Request | str) -> tuple[bytes, str]:
     """Issue one HTTP request via curl with HTTP/2 support and return (raw body, content-encoding)."""
     url = req.full_url if isinstance(req, urllib.request.Request) else req
@@ -265,7 +283,14 @@ def _build_request(url: str, *, json_mode: bool, retry: bool = False) -> urllib.
     return urllib.request.Request(url, headers=headers)
 
 
-def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
+def fetch(
+    url: str,
+    *,
+    json_mode: bool,
+    use_cache: bool = True,
+    ttl: int = CACHE_TTL,
+    write_cache: bool = True,
+) -> str:
     _validate_url(url)
 
     path = _cache_path(url)
@@ -301,10 +326,8 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         raise SystemExit(f"decompression error for {url}: {e}")
     text = raw.decode("utf-8", "replace")
 
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(text)
-    os.replace(tmp, path)
+    if write_cache:
+        _write_cache(url, text)
     return text
 
 
@@ -368,4 +391,3 @@ def clear_cache() -> int:
             except OSError:
                 pass
     return count
-

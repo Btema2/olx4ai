@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 import urllib.parse
 from typing import Any
@@ -53,6 +54,23 @@ def html_search(url: str, use_cache: bool, max_results: int | None = None) -> li
             if all_offers:
                 break
             raise
+
+        if not batch and current_page == start_page:
+            cache.evict(page_url)
+            if use_cache:
+                try:
+                    raw_html = cache.fetch(
+                        page_url, json_mode=False, use_cache=False, write_cache=False
+                    )
+                    state = extract_prerendered(raw_html)
+                    batch = find_offers(state)
+                except Exception:
+                    batch = []
+                if batch:
+                    cache._write_cache(page_url, raw_html)
+            if not batch:
+                cache.evict(page_url)
+                sys.stderr.write("WARNING: 0 offers parsed — possible bot-wall or layout variant\n")
 
         if not batch:
             break

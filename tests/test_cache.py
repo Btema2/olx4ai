@@ -277,7 +277,6 @@ def test_fetch_varies_headers_on_retry(monkeypatch):
     assert hdrs1.get("Accept-language") != hdrs2.get("Accept-language")
 
 
-
 def test_fetch_gives_up_after_one_retry_on_http_error(monkeypatch):
     sleep = MagicMock()
     monkeypatch.setattr(cache.time, "sleep", sleep)
@@ -573,3 +572,29 @@ def test_clear_cache_nonexistent_directory(monkeypatch, tmp_path):
     monkeypatch.setattr(cache, "CACHE_DIR", str(nonexistent))
     assert cache.clear_cache() == 0
 
+
+def test_evict_removes_existing_cached_file():
+    url = "https://www.olx.pl/test-evict"
+    with patch.object(cache, "_open", return_value=(b"cached-data", "")):
+        cache.fetch(url, json_mode=False)
+
+    cache_file = cache._cache_path(url)
+    assert os.path.exists(cache_file)
+
+    cache.evict(url)
+    assert not os.path.exists(cache_file)
+
+
+def test_evict_nonexistent_file_is_noop():
+    url = "https://www.olx.pl/does-not-exist"
+    cache.evict(url)  # should not raise
+
+
+def test_fetch_with_write_cache_false_does_not_create_cache_file():
+    url = "https://www.olx.pl/test-no-write"
+    with patch.object(cache, "_open", return_value=(b'{"ok": true}', "")):
+        res = cache.fetch(url, json_mode=True, use_cache=False, write_cache=False)
+
+    assert res == '{"ok": true}'
+    cache_file = cache._cache_path(url)
+    assert not os.path.exists(cache_file)
