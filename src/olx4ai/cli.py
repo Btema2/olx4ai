@@ -127,7 +127,6 @@ def cmd_clear_cache(args: argparse.Namespace) -> None:
     print(f"removed {n} cached responses")
 
 
-
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="olx4ai", description="context-cheap OLX browser for AI agents"

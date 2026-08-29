@@ -140,7 +140,6 @@ def test_clear_cache_removes_cached_files(tmp_path, capsys):
     assert not (tmp_path / "dangling.tmp").exists()
 
 
-
 def test_domain_flag_reconfigures_target_urls(monkeypatch):
     captured = {}
 

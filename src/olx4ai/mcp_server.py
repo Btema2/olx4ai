@@ -274,7 +274,6 @@ def clear_cache() -> dict[str, Any]:
     return {"removed": n}
 
 
-
 def main() -> None:
     if MCPServer is None or isinstance(mcp, _DummyMCP):
         raise SystemExit(

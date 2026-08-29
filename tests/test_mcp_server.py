@@ -153,7 +153,6 @@ async def test_clear_cache_tool_reports_removed_count(tmp_path):
     assert not (tmp_path / "dangling.tmp").exists()
 
 
-
 async def test_search_url_tool_applies_min_and_max_price_filters(monkeypatch, html_listing_html):
     monkeypatch.setattr(cache, "fetch", lambda url, **kw: html_listing_html)
     async with Client(mcp) as client:
