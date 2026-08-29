@@ -139,11 +139,19 @@ async def test_search_and_search_url_parameter_descriptions():
 
 async def test_clear_cache_tool_reports_removed_count(tmp_path):
     (tmp_path / "abc.cache").write_text("x")
+    (tmp_path / "abc.cache.tmp").write_text("x")
     (tmp_path / "index.json").write_text("{}")
+    (tmp_path / "index.json.tmp").write_text("{}")
+    (tmp_path / "dangling.tmp").write_text("tmp")
     async with Client(mcp) as client:
         result = await client.call_tool("clear_cache", {})
     assert result.structured_content["removed"] == 1
+    assert not (tmp_path / "abc.cache").exists()
+    assert not (tmp_path / "abc.cache.tmp").exists()
     assert not (tmp_path / "index.json").exists()
+    assert not (tmp_path / "index.json.tmp").exists()
+    assert not (tmp_path / "dangling.tmp").exists()
+
 
 
 async def test_search_url_tool_applies_min_and_max_price_filters(monkeypatch, html_listing_html):

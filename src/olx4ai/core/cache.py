@@ -326,3 +326,30 @@ def index_get(offer_id: str) -> str | None:
         return idx.get(str(offer_id))
     except Exception:  # noqa: BLE001
         return None
+
+
+def clear_cache() -> int:
+    """Remove all cached HTTP responses, atomic-write temporary files, and index files.
+
+    Returns the count of .cache files removed.
+    """
+    count = 0
+    if not os.path.isdir(CACHE_DIR):
+        return 0
+    for name in os.listdir(CACHE_DIR):
+        full_path = os.path.join(CACHE_DIR, name)
+        if not os.path.isfile(full_path):
+            continue
+        if name.endswith(".cache"):
+            try:
+                os.remove(full_path)
+                count += 1
+            except OSError:
+                pass
+        elif name.endswith(".tmp") or name == "index.json":
+            try:
+                os.remove(full_path)
+            except OSError:
+                pass
+    return count
+

@@ -125,13 +125,20 @@ def test_agent_help_documents_filter_semantics_and_dedupe(capsys):
 
 def test_clear_cache_removes_cached_files(tmp_path, capsys):
     (tmp_path / "abc.cache").write_text("x")
+    (tmp_path / "abc.cache.tmp").write_text("x")
     (tmp_path / "index.json").write_text("{}")
+    (tmp_path / "index.json.tmp").write_text("{}")
+    (tmp_path / "dangling.tmp").write_text("tmp")
     sys.argv = ["olx4ai", "clear-cache"]
     main()
     out = capsys.readouterr().out
     assert "removed 1 cached responses" in out
     assert not (tmp_path / "abc.cache").exists()
+    assert not (tmp_path / "abc.cache.tmp").exists()
     assert not (tmp_path / "index.json").exists()
+    assert not (tmp_path / "index.json.tmp").exists()
+    assert not (tmp_path / "dangling.tmp").exists()
+
 
 
 def test_domain_flag_reconfigures_target_urls(monkeypatch):

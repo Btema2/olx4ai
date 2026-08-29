@@ -523,3 +523,30 @@ def test_open_curl_partial_transfer_failure_raises_url_error():
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.URLError, match="transfer closed"):
             cache._open(req)
+
+
+def test_clear_cache_removes_tmp_files_and_cache(tmp_path):
+    (tmp_path / "1.cache").write_text("c1")
+    (tmp_path / "2.cache").write_text("c2")
+    (tmp_path / "1.cache.tmp").write_text("tmp1")
+    (tmp_path / "index.json").write_text("{}")
+    (tmp_path / "index.json.tmp").write_text("{}")
+    (tmp_path / "dangling.tmp").write_text("dangling")
+    (tmp_path / "unrelated.txt").write_text("keep")
+
+    removed = cache.clear_cache()
+    assert removed == 2
+    assert not (tmp_path / "1.cache").exists()
+    assert not (tmp_path / "2.cache").exists()
+    assert not (tmp_path / "1.cache.tmp").exists()
+    assert not (tmp_path / "index.json").exists()
+    assert not (tmp_path / "index.json.tmp").exists()
+    assert not (tmp_path / "dangling.tmp").exists()
+    assert (tmp_path / "unrelated.txt").exists()
+
+
+def test_clear_cache_nonexistent_directory(monkeypatch, tmp_path):
+    nonexistent = tmp_path / "does_not_exist"
+    monkeypatch.setattr(cache, "CACHE_DIR", str(nonexistent))
+    assert cache.clear_cache() == 0
+
