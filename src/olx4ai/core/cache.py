@@ -98,6 +98,28 @@ def _cache_path(key: str) -> str:
     return os.path.join(CACHE_DIR, hashlib.sha1(key.encode()).hexdigest() + ".cache")
 
 
+def evict(url: str) -> None:
+    """Remove a cached HTTP response file for the given URL if present."""
+    path = _cache_path(url)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def write_cache(url: str, text: str) -> None:
+    """Write text to the cache file for url atomically."""
+    path = _cache_path(url)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
+
+
+_write_cache = write_cache
+
+
 def _open(req: urllib.request.Request | str) -> tuple[bytes, str]:
     """Issue one HTTP request via curl with HTTP/2 support and return (raw body, content-encoding)."""
     url = req.full_url if isinstance(req, urllib.request.Request) else req
@@ -237,17 +259,9 @@ def _format_http_error(e: urllib.error.HTTPError, url: str) -> str:
     return f"HTTP {e.code} for {url}"
 
 
-def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE_TTL) -> str:
-    _validate_url(url)
-
-    path = _cache_path(url)
-    if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:
-        with open(path, "r", encoding="utf-8") as fh:
-            return fh.read()
-
-    req = urllib.request.Request(
-        url,
-        headers={
+def _build_request(url: str, *, json_mode: bool, retry: bool = False) -> urllib.request.Request:
+    if not retry:
+        headers = {
             "User-Agent": UA,
             "Accept": (
                 "application/json, text/plain, */*"
@@ -257,8 +271,38 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
             "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
             "Accept-Encoding": "gzip, deflate",
             "Referer": BASE + "/",
-        },
-    )
+        }
+    else:
+        headers = {
+            "User-Agent": UA,
+            "Accept": (
+                "application/json, text/plain, */*;q=0.8"
+                if json_mode
+                else "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            ),
+            "Accept-Language": "pl,en-US;q=0.7,en;q=0.3",
+            "Accept-Encoding": "gzip, deflate",
+            "Referer": BASE + "/",
+        }
+    return urllib.request.Request(url, headers=headers)
+
+
+def fetch(
+    url: str,
+    *,
+    json_mode: bool,
+    use_cache: bool = True,
+    ttl: int = CACHE_TTL,
+    write_cache: bool = True,
+) -> str:
+    _validate_url(url)
+
+    path = _cache_path(url)
+    if use_cache and os.path.exists(path) and time.time() - os.path.getmtime(path) < ttl:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read()
+
+    req = _build_request(url, json_mode=json_mode, retry=False)
     try:
         raw, enc = _open(req)
     except urllib.error.HTTPError as e:
@@ -268,7 +312,8 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         e.close()
         time.sleep(delay)
         try:
-            raw, enc = _open(req)
+            req_retry = _build_request(url, json_mode=json_mode, retry=True)
+            raw, enc = _open(req_retry)
         except urllib.error.HTTPError as e2:
             raise SystemExit(_format_http_error(e2, url))
         except Exception as e2:  # noqa: BLE001
@@ -285,10 +330,8 @@ def fetch(url: str, *, json_mode: bool, use_cache: bool = True, ttl: int = CACHE
         raise SystemExit(f"decompression error for {url}: {e}")
     text = raw.decode("utf-8", "replace")
 
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(text)
-    os.replace(tmp, path)
+    if write_cache:
+        _write_cache(url, text)
     return text
 
 
@@ -326,3 +369,29 @@ def index_get(offer_id: str) -> str | None:
         return idx.get(str(offer_id))
     except Exception:  # noqa: BLE001
         return None
+
+
+def clear_cache() -> int:
+    """Remove all cached HTTP responses, atomic-write temporary files, and index files.
+
+    Returns the count of .cache files removed.
+    """
+    count = 0
+    if not os.path.isdir(CACHE_DIR):
+        return 0
+    for name in os.listdir(CACHE_DIR):
+        full_path = os.path.join(CACHE_DIR, name)
+        if not os.path.isfile(full_path):
+            continue
+        if name.endswith(".cache"):
+            try:
+                os.remove(full_path)
+                count += 1
+            except OSError:
+                pass
+        elif name.endswith(".tmp") or name == "index.json":
+            try:
+                os.remove(full_path)
+            except OSError:
+                pass
+    return count

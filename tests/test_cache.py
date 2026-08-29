@@ -250,9 +250,31 @@ def test_fetch_retries_once_on_http_error_then_succeeds(monkeypatch):
 
     assert text == '{"ok": true}'
     assert mock_open.call_count == 2
-    # the retry reuses the exact same Request (same URL/headers), not a new one
-    assert mock_open.call_args_list[0].args[0] is mock_open.call_args_list[1].args[0]
+    # the retry creates a new Request with varied headers, not the same one
+    assert mock_open.call_args_list[0].args[0] is not mock_open.call_args_list[1].args[0]
     sleep.assert_called_once_with(cache.RETRY_DELAY)
+
+
+def test_fetch_varies_headers_on_retry(monkeypatch):
+    sleep = MagicMock()
+    monkeypatch.setattr(cache.time, "sleep", sleep)
+
+    with patch.object(
+        cache,
+        "_open",
+        side_effect=[_http_error(code=429), (b'{"ok": true}', "")],
+    ) as mock_open:
+        text = cache.fetch("https://www.olx.pl/retry-varies", json_mode=True)
+
+    assert text == '{"ok": true}'
+    assert mock_open.call_count == 2
+    req1 = mock_open.call_args_list[0].args[0]
+    req2 = mock_open.call_args_list[1].args[0]
+    assert req1 is not req2
+    hdrs1 = dict(req1.header_items())
+    hdrs2 = dict(req2.header_items())
+    assert hdrs1 != hdrs2
+    assert hdrs1.get("Accept-language") != hdrs2.get("Accept-language")
 
 
 def test_fetch_gives_up_after_one_retry_on_http_error(monkeypatch):
@@ -523,3 +545,56 @@ def test_open_curl_partial_transfer_failure_raises_url_error():
     with patch("subprocess.run", side_effect=fake_subprocess_run):
         with pytest.raises(urllib.error.URLError, match="transfer closed"):
             cache._open(req)
+
+
+def test_clear_cache_removes_tmp_files_and_cache(tmp_path):
+    (tmp_path / "1.cache").write_text("c1")
+    (tmp_path / "2.cache").write_text("c2")
+    (tmp_path / "1.cache.tmp").write_text("tmp1")
+    (tmp_path / "index.json").write_text("{}")
+    (tmp_path / "index.json.tmp").write_text("{}")
+    (tmp_path / "dangling.tmp").write_text("dangling")
+    (tmp_path / "unrelated.txt").write_text("keep")
+
+    removed = cache.clear_cache()
+    assert removed == 2
+    assert not (tmp_path / "1.cache").exists()
+    assert not (tmp_path / "2.cache").exists()
+    assert not (tmp_path / "1.cache.tmp").exists()
+    assert not (tmp_path / "index.json").exists()
+    assert not (tmp_path / "index.json.tmp").exists()
+    assert not (tmp_path / "dangling.tmp").exists()
+    assert (tmp_path / "unrelated.txt").exists()
+
+
+def test_clear_cache_nonexistent_directory(monkeypatch, tmp_path):
+    nonexistent = tmp_path / "does_not_exist"
+    monkeypatch.setattr(cache, "CACHE_DIR", str(nonexistent))
+    assert cache.clear_cache() == 0
+
+
+def test_evict_removes_existing_cached_file():
+    url = "https://www.olx.pl/test-evict"
+    with patch.object(cache, "_open", return_value=(b"cached-data", "")):
+        cache.fetch(url, json_mode=False)
+
+    cache_file = cache._cache_path(url)
+    assert os.path.exists(cache_file)
+
+    cache.evict(url)
+    assert not os.path.exists(cache_file)
+
+
+def test_evict_nonexistent_file_is_noop():
+    url = "https://www.olx.pl/does-not-exist"
+    cache.evict(url)  # should not raise
+
+
+def test_fetch_with_write_cache_false_does_not_create_cache_file():
+    url = "https://www.olx.pl/test-no-write"
+    with patch.object(cache, "_open", return_value=(b'{"ok": true}', "")):
+        res = cache.fetch(url, json_mode=True, use_cache=False, write_cache=False)
+
+    assert res == '{"ok": true}'
+    cache_file = cache._cache_path(url)
+    assert not os.path.exists(cache_file)

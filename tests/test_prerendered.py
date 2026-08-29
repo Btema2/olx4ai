@@ -26,6 +26,34 @@ def test_extract_prerendered_js_string_variant():
     assert state["listing"]["listing"]["data"][0]["title"] == "Offer A"
 
 
+def test_extract_prerendered_single_quoted_backslash_quote_edge_case():
+    # String literal with escaped backslash followed by escaped quote: \\\'
+    html = r"""
+    <html>
+      <script>
+        window.__PRERENDERED_STATE__ = '{"category": "test\\\\\'s", "path": "C:\\\\\\\\test", "quote": "hello \\\"world\\\""}';
+      </script>
+    </html>
+    """
+    state = extract_prerendered(html)
+    assert state["category"] == "test\\'s"
+    assert state["path"] == "C:\\\\test"
+    assert state["quote"] == 'hello "world"'
+
+
+def test_extract_prerendered_single_quoted_escapes():
+    html = r"""
+    <script>
+      window.__PRERENDERED_STATE__ = '{"name": "O\'Neil\nCorp", "unicode": "\u0041", "hex": "\x42", "city": "Krak\u00f3w"}';
+    </script>
+    """
+    state = extract_prerendered(html)
+    assert state["name"] == "O'Neil\nCorp"
+    assert state["unicode"] == "A"
+    assert state["hex"] == "B"
+    assert state["city"] == "Kraków"
+
+
 def test_extract_prerendered_raises_when_marker_absent():
     with pytest_raises_system_exit():
         extract_prerendered("<html><body>nothing here</body></html>")

@@ -42,6 +42,77 @@ def _scan_balanced(s: str) -> str:
     raise ValueError("unbalanced JSON")
 
 
+def _decode_js_single_quoted_string(s: str) -> str:
+    """Decode a single-quoted JS string literal s (including outer quotes)."""
+    if len(s) >= 2 and s[0] == "'" and s[-1] == "'":
+        content = s[1:-1]
+    else:
+        content = s
+    res = []
+    i = 0
+    n = len(content)
+    while i < n:
+        c = content[i]
+        if c == "\\":
+            i += 1
+            if i >= n:
+                res.append("\\")
+                break
+            esc = content[i]
+            if esc == "'":
+                res.append("'")
+            elif esc == "\\":
+                res.append("\\")
+            elif esc == '"':
+                res.append('"')
+            elif esc == "b":
+                res.append("\b")
+            elif esc == "f":
+                res.append("\f")
+            elif esc == "n":
+                res.append("\n")
+            elif esc == "r":
+                res.append("\r")
+            elif esc == "t":
+                res.append("\t")
+            elif esc == "v":
+                res.append("\v")
+            elif esc == "0":
+                res.append("\0")
+            elif esc == "x" and i + 2 < n:
+                try:
+                    res.append(chr(int(content[i + 1 : i + 3], 16)))
+                    i += 2
+                except ValueError:
+                    res.append("\\x")
+            elif esc == "u":
+                if i + 1 < n and content[i + 1] == "{":
+                    end_brace = content.find("}", i + 2)
+                    if end_brace != -1:
+                        hex_str = content[i + 2 : end_brace]
+                        try:
+                            res.append(chr(int(hex_str, 16)))
+                            i = end_brace
+                        except (ValueError, OverflowError):
+                            res.append("\\u")
+                    else:
+                        res.append("\\u")
+                elif i + 4 < n:
+                    try:
+                        res.append(chr(int(content[i + 1 : i + 5], 16)))
+                        i += 4
+                    except ValueError:
+                        res.append("\\u")
+                else:
+                    res.append(esc)
+            else:
+                res.append(esc)
+        else:
+            res.append(c)
+        i += 1
+    return "".join(res)
+
+
 def extract_prerendered(html: str) -> dict:
     """Pull window.__PRERENDERED_STATE__ out of an OLX page, whatever its encoding."""
     idx = html.find("__PRERENDERED_STATE__")
@@ -54,16 +125,17 @@ def extract_prerendered(html: str) -> dict:
             raise ValueError("empty state after __PRERENDERED_STATE__ assignment")
         if rest[0] in "\"'":
             literal = _scan_js_string(rest)
-            if literal[0] == "'":  # normalise to a JSON-parsable double-quoted literal
-                literal = '"' + literal[1:-1].replace('"', '\\"').replace("\\'", "'") + '"'
-            inner = json.loads(literal)  # -> str
+            if literal[0] == "'":
+                inner = _decode_js_single_quoted_string(literal)
+            else:
+                inner = json.loads(literal)  # -> str
         else:
             inner = _scan_balanced(rest)
 
         if isinstance(inner, str):
             if inner.lstrip().startswith("%"):  # sometimes URI-encoded
                 inner = urllib.parse.unquote(inner)
-            return json.loads(inner)
+            return json.loads(inner, strict=False)
         return inner
     except (json.JSONDecodeError, ValueError, IndexError) as e:
         raise SystemExit(f"malformed __PRERENDERED_STATE__ on page: {e}") from e

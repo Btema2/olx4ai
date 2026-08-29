@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 
 from olx4ai.core import adapters, api_client, cache, filters
@@ -124,15 +123,7 @@ def cmd_agent_help(args: argparse.Namespace) -> None:
 
 
 def cmd_clear_cache(args: argparse.Namespace) -> None:
-    n = 0
-    if os.path.isdir(cache.CACHE_DIR):
-        for f in os.listdir(cache.CACHE_DIR):
-            if f.endswith(".cache"):
-                os.remove(os.path.join(cache.CACHE_DIR, f))
-                n += 1
-        index_file = os.path.join(cache.CACHE_DIR, "index.json")
-        if os.path.exists(index_file):
-            os.remove(index_file)
+    n = cache.clear_cache()
     print(f"removed {n} cached responses")
 
 
