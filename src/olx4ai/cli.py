@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 
 from olx4ai.core import adapters, api_client, cache, filters
